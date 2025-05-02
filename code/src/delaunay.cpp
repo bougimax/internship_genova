@@ -1358,7 +1358,7 @@ void TetMesh::tets_in_ball(uint32_t v, double length,
   }
 }
 
-void TetMesh::first_pass(std::vector<double> &desired_lengths) {
+void TetMesh::first_pass(std::vector<double> &desired_lengths, double epsilon) {
   std::vector<std::pair<uint32_t, uint32_t>> edges;
   getMeshEdges(edges);
   for (std::pair<uint32_t, uint32_t> e : edges) {
@@ -1380,7 +1380,9 @@ void TetMesh::first_pass(std::vector<double> &desired_lengths) {
       energy_ball += getTetEnergy(t);
     }
     if (energy_ball > 8) {
-      desired_lengths[i] /= 2.;
+      if (desired_lengths[i] / 2 > epsilon) {
+        desired_lengths[i] /= 2.;
+      }
     } else {
       desired_lengths[i] *= 1.5;
     }
