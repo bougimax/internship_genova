@@ -23,8 +23,7 @@ using namespace std;
 
 TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
   bool log = false, bbox = false, verbose = false, snap = false,
-       logscreen = false;
-  // bool optimize = false;
+       logscreen = false, optimize = false;
 
   for (int i = 0; i < strlen(options); i++)
     switch (options[i]) {
@@ -43,8 +42,9 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     case 'f':
       snap = true;
       break;
-      // case 'o':
-      //	optimize = true; break;
+    case 'o':
+      optimize = true;
+      break;
     } // Just ignore unknown options
 
   if (bbox)
@@ -113,8 +113,13 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     }
   }
 
-  // if (optimize) tin->optimizeMesh();
-
+  if (optimize) {
+    std::cout << "Before optimization total energy is " << tin->getTotalEnergy()
+              << std::endl;
+    tin->optimizeMesh();
+    std::cout << "After optimization total energy is " << tin->getTotalEnergy()
+              << std::endl;
+  }
   return tin;
 }
 

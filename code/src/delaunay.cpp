@@ -1,8 +1,10 @@
 #include "delaunay.h"
 #include "numeric_wrapper.h"
+#include <cfloat>
 #include <cstdint>
 #include <float.h>
 #include <iomanip>
+#include <ostream>
 
 using namespace std;
 
@@ -384,6 +386,25 @@ bool TetMesh::tetHasVertex(uint64_t t, uint32_t v) const {
          tet_node[t + 3] == v;
 }
 
+void TetMesh::oppositeTetEdgePair(
+    uint64_t tet, const std::pair<uint32_t, uint32_t> &edge,
+    std::pair<uint32_t, uint32_t> &opposite_edge) const {
+  int i = 0, j = 0;
+  tet <<= 2;
+  while (i < 4) {
+    const uint32_t w = tet_node[tet + i];
+    if (w != edge.first && w != edge.second) {
+      if (j == 0) {
+        opposite_edge.first = w;
+      } else {
+        opposite_edge.second = w;
+      }
+      j++;
+    }
+    i++;
+  }
+  assert(j == 2);
+}
 void TetMesh::oppositeTetEdge(const uint64_t tet, const uint32_t v[2],
                               uint32_t ov[2]) const {
   int i = 0, j = 0;
@@ -1297,6 +1318,7 @@ uint32_t TetMesh::findEncroachingPoint(const uint32_t ep0, const uint32_t ep1,
 // const vector3d& v4) {
 double tetEnergy(const pointType *p1, const pointType *p2, const pointType *p3,
                  const pointType *p4) {
+
   const vector3d v1(p1), v2(p2), v3(p3), v4(p4);
   const vector3d e1 = v2 - v1, e2 = v3 - v1, e3 = v4 - v1;
   const double *t1 = e1.c, *t2 = e2.c, *t3 = e3.c;
@@ -1316,12 +1338,12 @@ double tetEnergy(const pointType *p1, const pointType *p2, const pointType *p3,
 }
 
 bool TetMesh::is_tet_in_sphere(uint32_t v, double length, uint64_t t) {
-  vector3d _v(v);
-  double squared_length = std::pow(length, 2);
-  return (_v.dist_sq(vector3d(vertices[tet_node[t]]).) < squared_length) &&
-         (_v.dist_sq(vector3d(vertices[tet_node[t + 1]]).) < squared_length) &&
-         (_v.dist_sq(vector3d(vertices[tet_node[t + 2]]).) < squared_length) &&
-         (_v.dist_sq(vector3d(vertices[tet_node[t + 3]]).) < squared_length);
+  vector3d _v(vertices[v]);
+  double squared_length = pow(length, 2);
+  return (_v.dist_sq(vector3d(vertices[tet_node[t]])) < squared_length) &&
+         (_v.dist_sq(vector3d(vertices[tet_node[t + 1]])) < squared_length) &&
+         (_v.dist_sq(vector3d(vertices[tet_node[t + 2]])) < squared_length) &&
+         (_v.dist_sq(vector3d(vertices[tet_node[t + 3]])) < squared_length);
 }
 
 void TetMesh::tets_in_ball(uint32_t v, double length,
@@ -1363,10 +1385,11 @@ void TetMesh::first_pass(std::vector<double> &desired_lengths, double epsilon) {
   getMeshEdges(edges);
   for (std::pair<uint32_t, uint32_t> e : edges) {
     uint32_t v0 = e.first, v1 = e.second;
-    double average_length = desired_lengths[v0] + desired_lengths[v1]) / 2;
+    double average_length = (desired_lengths[v0] + desired_lengths[v1]) / 2;
     if (9 * vector3d(vertices[v0]).dist_sq(vector3d(vertices[v1])) >
-        16 * std::pow(average_length, 2)) {
-      pushVertex(new implicitPoint_LNC(vertices[v0], vertices[v1], 0.5));
+        16 * pow(average_length, 2)) {
+      pushVertex(new implicitPoint_LNC(vertices[v0]->toExplicit3D(),
+                                       vertices[v1]->toExplicit3D(), 0.5));
       splitEdge(v0, v1, vertices.size());
       desired_lengths.push_back(average_length);
     }
@@ -1386,6 +1409,103 @@ void TetMesh::first_pass(std::vector<double> &desired_lengths, double epsilon) {
     } else {
       desired_lengths[i] *= 1.5;
     }
+  }
+}
+
+void TetMesh::optimizeMesh() { first_pass_bis(); }
+
+double TetMesh::get_energy_from_splitting(uint64_t tetrahedra,
+                                          std::pair<uint32_t, uint32_t> edge,
+                                          pointType *potential_split_point) {
+  std::pair<uint32_t, uint32_t> opposite_edge;
+  double energy_tet_1, energy_tet_2;
+
+  oppositeTetEdgePair(tetrahedra, edge, opposite_edge);
+  if (-pointType::orient3D(*vertices[edge.first], *potential_split_point,
+                           *vertices[opposite_edge.first],
+                           *vertices[opposite_edge.second]) > 0) {
+    energy_tet_1 = tetEnergy(vertices[edge.first], potential_split_point,
+                             vertices[opposite_edge.first],
+                             vertices[opposite_edge.second]);
+  } else {
+    energy_tet_1 = tetEnergy(potential_split_point, vertices[edge.first],
+                             vertices[opposite_edge.first],
+                             vertices[opposite_edge.second]);
+  }
+  if (-pointType::orient3D(*vertices[edge.second], *potential_split_point,
+                           *vertices[opposite_edge.first],
+                           *vertices[opposite_edge.second]) > 0) {
+    energy_tet_2 = tetEnergy(vertices[edge.second], potential_split_point,
+                             vertices[opposite_edge.first],
+                             vertices[opposite_edge.second]);
+  } else {
+    energy_tet_2 = tetEnergy(potential_split_point, vertices[edge.second],
+                             vertices[opposite_edge.first],
+                             vertices[opposite_edge.second]);
+  }
+
+  if (energy_tet_1 == DBL_MAX || energy_tet_2 == DBL_MAX) {
+    std::cout << "Both orientation dbl_max" << std::endl;
+    return DBL_MAX;
+  }
+
+  return energy_tet_1 + energy_tet_2;
+}
+
+void TetMesh::first_pass_bis() {
+  std::vector<double> tets_energy;
+  get_all_tets_energy(tets_energy);
+
+  std::vector<std::pair<uint32_t, uint32_t>> edges;
+  getMeshEdges(edges);
+  std::vector<std::pair<uint32_t, uint32_t>> edges_to_split;
+  std::vector<uint64_t> incident_tetrahedras;
+
+  double pre_transformation_energy, post_transformation_energy;
+
+  for (std::pair<uint32_t, uint32_t> e : edges) {
+    pre_transformation_energy = 0.;
+    post_transformation_energy = 0.;
+    incident_tetrahedras.clear();
+
+    implicitPoint_LNC *potential_split_point =
+        new implicitPoint_LNC(vertices[e.first]->toExplicit3D(),
+                              vertices[e.second]->toExplicit3D(), 0.5);
+
+    ET(e.first, e.second, incident_tetrahedras);
+
+    for (uint64_t tet : incident_tetrahedras) {
+      if (tets_energy[tet] != DBL_MAX) {
+        pre_transformation_energy += tets_energy[tet];
+        if (get_energy_from_splitting(tet, e, potential_split_point) ==
+            DBL_MAX) {
+          post_transformation_energy = DBL_MAX;
+          break;
+        }
+        post_transformation_energy +=
+            get_energy_from_splitting(tet, e, potential_split_point);
+      }
+    }
+
+    if (post_transformation_energy < pre_transformation_energy)
+      edges_to_split.push_back(e);
+
+    delete potential_split_point;
+  }
+
+  for (std::pair<uint32_t, uint32_t> e : edges_to_split) {
+    pushVertex(new implicitPoint_LNC(vertices[e.first]->toExplicit3D(),
+                                     vertices[e.second]->toExplicit3D(), 0.5));
+    splitEdge(e.first, e.second, vertices.size() - 1);
+  }
+}
+
+void TetMesh::get_all_tets_energy(std::vector<double> &tets_energy) {
+  const uint32_t num_tets = numTets();
+  tets_energy.clear();
+  tets_energy.reserve(num_tets);
+  for (uint32_t i = 0; i < num_tets; i++) {
+    tets_energy.push_back(getTetEnergy(i));
   }
 }
 
@@ -1674,6 +1794,10 @@ vector3d getFaceCenter(const TetMesh &tin, uint64_t c) {
 }
 
 void TetMesh::splitEdge(uint32_t ev0, uint32_t ev1, uint32_t v) {
+  std::cout << "Before splitting an edge there is " << numTets()
+            << " tetrahedra" << std::endl;
+  std::cout << "Before splitting an edge the total energy is "
+            << getTotalEnergy() << std::endl;
   uint64_t itt = UINT64_MAX;
   static std::vector<uint64_t> et;
   et.clear();
@@ -1727,6 +1851,10 @@ void TetMesh::splitEdge(uint32_t ev0, uint32_t ev1, uint32_t v) {
       inc_tet[v] = t;
       break;
     }
+  std::cout << "After splitting an edge there is " << numTets() << " tetrahedra"
+            << std::endl;
+  std::cout << "After splitting an edge the total energy is "
+            << getTotalEnergy() << std::endl;
 }
 
 double TetMesh::maxEnergyAtEdge(uint32_t v1, uint32_t v2) const {
@@ -1887,8 +2015,22 @@ void TetMesh::getMeshEdges(
 
 double TetMesh::getTetEnergy(uint64_t t) const {
   const uint32_t *n1 = tet_node.data() + (t << 2);
+  if (n1[0] == INFINITE_VERTEX || n1[1] == INFINITE_VERTEX ||
+      n1[2] == INFINITE_VERTEX || n1[3] == INFINITE_VERTEX)
+    return DBL_MAX;
   return tetEnergy(vertices[n1[0]], vertices[n1[1]], vertices[n1[2]],
                    vertices[n1[3]]);
+}
+
+double TetMesh::getTotalEnergy() {
+  const uint32_t num_tets = numTets();
+  double total_energy = 0., current_tet_energy;
+  for (uint32_t t = 0; t < num_tets; t++) {
+    current_tet_energy = getTetEnergy(t);
+    if (current_tet_energy != DBL_MAX)
+      total_energy += current_tet_energy;
+  }
+  return total_energy;
 }
 
 void TetMesh::boundaryETcorners(uint32_t v1, uint32_t v2,

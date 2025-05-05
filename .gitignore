@@ -1,3 +1,5 @@
+# Project build
+
 build/
 
 # Latex file
@@ -8,3 +10,11 @@ build/
 *.log
 *.synctex.gz
 
+# Polyscope
+
+.polyscope.ini
+imgui.ini
+
+# Output files
+
+*.tet

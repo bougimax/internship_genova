@@ -150,6 +150,10 @@ public:
   void oppositeTetEdge(const uint64_t tet, const uint32_t v[2],
                        uint32_t ov[2]) const;
 
+  void oppositeTetEdgePair(const uint64_t tet,
+                           const std::pair<uint32_t, uint32_t> &edge,
+                           std::pair<uint32_t, uint32_t> &opposite_edge) const;
+
   // Let t and n be face-adjacent tets.
   // This function returns the corner in t which is opposite to n
   uint64_t getCornerFromOppositeTet(uint64_t t, uint64_t n) const;
@@ -400,10 +404,21 @@ public:
 
   /// Operations to optimize the mesh
 
-  // Execute first pass of optimization process as described in sec 3.2 of
-  // tetwild
-  // MAX
-  void first_pass(std::vector<double> &desired_lengths);
+  void optimizeMesh();
+
+  // Execute first pass (refining) of optimization process as described in
+  // sec 3.2 of tetwild MAX
+  void first_pass(std::vector<double> &desired_lengths, double epsilon);
+
+  double get_energy_from_splitting(uint64_t tetrahedra,
+                                   std::pair<uint32_t, uint32_t> edge,
+                                   pointType *potential_split_point);
+
+  void first_pass_bis();
+
+  // Execute second pass (coarsening) of optimization process as described in
+  // sec 3.2 of tetwild MAX
+  void second_pass(double length);
 
   // Return TRUE if the tetrahedra t is fully inside the ball centered on v and
   // of radius length
@@ -463,6 +478,10 @@ public:
   size_t iterativelySwapMesh(double th_energy);
 
   double getTetEnergy(uint64_t t) const;
+
+  double getTotalEnergy();
+
+  void get_all_tets_energy(std::vector<double> &tets_energy);
 
   // Put in tets all the tetrahedras that are completely in the ball centered on
   // v of radius length
