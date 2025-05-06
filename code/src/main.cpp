@@ -114,10 +114,17 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
   }
 
   if (optimize) {
-    std::cout << "Before optimization total energy is " << tin->getTotalEnergy()
+    std::cout << "Before optimization mean energy is " << tin->getMeanEnergy()
               << std::endl;
-    tin->optimizeMesh();
-    std::cout << "After optimization total energy is " << tin->getTotalEnergy()
+    for (int i = 0; i < 50; i++) {
+      tin->optimizeMesh();
+      std::cout << "After optimization pass " << i << " mean energy is "
+                << tin->getMeanEnergy() << std::endl;
+      std::cout << "After optimization pass " << i << " max energy is "
+                << tin->getMaxEnergy() << "\n"
+                << std::endl;
+    }
+    std::cout << "After optimization mean energy is " << tin->getMeanEnergy()
               << std::endl;
   }
   return tin;

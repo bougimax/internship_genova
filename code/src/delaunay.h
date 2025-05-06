@@ -35,11 +35,27 @@
 
 class TetMesh {
 public:
+  typedef uint32_t vertex;
+  typedef uint64_t corner;
+  typedef uint64_t tetrahedra;
+  typedef std::pair<vertex, vertex> edge;
   // General purpose fields
   std::vector<pointType *> vertices; // Vertices
-  std::vector<uint64_t> inc_tet;     // One tet incident upon each vertex
-  std::vector<uint32_t> tet_node;    // Tet corners
-  std::vector<uint64_t> tet_neigh;   // Tet opposites
+  std::vector<tetrahedra> inc_tet;   // One tet incident upon each vertex
+  std::vector<vertex>
+      tet_node; // Tet corners -> [v_{0,0}, v_{0,1}, v_{0,2}, v_{0,3}; ... ;
+                //                 v_{i,0}, v_{i,1}, v_{i,2}, v_{i,3}; ... ;
+                //                 v_{n,0}, v_{n,1}, v_{n,2}, v_{n,3}]
+                //                 Where v_{i,j} is the jth vertex of ith
+                //                 tetrahedra
+  std::vector<corner>
+      tet_neigh; // Tet opposite corners ->
+                 //               [c_{0,0}, c_{0,1}, c_{0,2}, c_{0,3}; ...;
+                 //                 c_{i,0}, c_{i,1}, c_{i,2}, c_{i,3}; ... ;
+                 //                 c_{n,0}, c_{n,1}, c_{n,2}, c_{n,3}]
+                 //                 Where c_{i,j} is the corner index (relative
+                 //                 to tet_node) of the opposite corner of
+                 //                 vertex v_{i,j} in ith tetrahedra tetrahedra
   mutable std::vector<uint32_t> mark_tetrahedra;    // Marks on tets
   mutable std::vector<unsigned char> marked_vertex; // Marks on vertices
 
@@ -138,45 +154,71 @@ public:
 
   /////// Local (element-based) functions ///////
 
+  // Return ith vertex id of tetrahedra t
+  vertex get_i_th_vertex_of_tetrahedra(tetrahedra t_index, uint32_t i) {
+    assert(0 <= i && i < 4);
+    return tet_node[(t_index << 2) + i];
+  }
+  // Return ith corner id of tetrahedra t
+  corner get_i_th_corner_of_tetrahedra(tetrahedra t_index, uint32_t i) {
+    assert(0 <= i && i < 4);
+    return (t_index << 2) + i;
+  }
+
+  uint32_t get_index_of_corner_in_tet(corner c) const { return c & 3; }
+  // Return tetrahedra index of the corner c
+  tetrahedra get_tetrahedra_index_from_corner(corner c) {
+    return (c & (~3)) >> 2;
+  }
+
   // TRUE if tet is ghost
-  bool isGhost(uint64_t t) const {
-    return tet_node[(t << 2) + 3] == INFINITE_VERTEX;
+  bool isGhost(tetrahedra t_index) const {
+    return tet_node[(t_index << 2) + 3] == INFINITE_VERTEX;
+  }
+
+  bool has_infinite_vertex(tetrahedra t_index) const {
+    return (tet_node[(t_index << 2)] == INFINITE_VERTEX) ||
+           (tet_node[(t_index << 2) + 1] == INFINITE_VERTEX) ||
+           (tet_node[(t_index << 2) + 2] == INFINITE_VERTEX) ||
+           (tet_node[(t_index << 2) + 3] == INFINITE_VERTEX);
   }
 
   // TRUE if t has vertex v
-  bool tetHasVertex(uint64_t t, uint32_t v) const;
+  bool tetHasVertex(tetrahedra t_index, vertex v) const;
 
   // Init 'ov' with the two vertices of tet which are not in 'v'
-  void oppositeTetEdge(const uint64_t tet, const uint32_t v[2],
-                       uint32_t ov[2]) const;
+  void oppositeTetEdge(tetrahedra t_index, const vertex v[2],
+                       vertex ov[2]) const;
 
-  void oppositeTetEdgePair(const uint64_t tet,
-                           const std::pair<uint32_t, uint32_t> &edge,
-                           std::pair<uint32_t, uint32_t> &opposite_edge) const;
+  void oppositeTetEdgePair(tetrahedra t_index, const TetMesh::edge &edge,
+                           TetMesh::edge &opposite_edge) const;
 
   // Let t and n be face-adjacent tets.
   // This function returns the corner in t which is opposite to n
-  uint64_t getCornerFromOppositeTet(uint64_t t, uint64_t n) const;
+  corner getCornerFromOppositeTet(tetrahedra t_index, tetrahedra n_index) const;
 
   // Return the i'th tet in neighbors 'n'
-  inline uint64_t getIthNeighbor(const uint64_t *n, const uint64_t i) const {
+  inline corner getIthNeighbor(const corner *n, const uint64_t i) const {
+    // n[i] recovers the ith opposite corner, then _ & (~3) recovers the tet
+    // base of which this opposite corner is from
     return n[i] & (~3);
   }
 
-  // Fill v with the three vertices of t
-  void getFaceVertices(uint64_t t, uint32_t v[3]) const;
+  // Fill v with the three other vertices different from tet_node[c] of the
+  // tetrahedra that contains corner c
+  void getFaceVertices(corner c, vertex v[3]) const;
 
   // Fill 'nt' with the two tets that share the vertices v1,v2,v3
-  bool getTetsFromFaceVertices(uint32_t v1, uint32_t v2, uint32_t v3,
-                               uint64_t *nt) const;
+  bool getTetsFromFaceVertices(vertex v1, vertex v2, vertex v3,
+                               tetrahedra *nt) const;
 
   // Return the corner of t which is opposite to its face with vertices v1,v2,v3
-  uint64_t tetOppositeCorner(uint64_t t, uint32_t v1, uint32_t v2,
-                             uint32_t v3) const;
+  corner tetOppositeCorner(tetrahedra t_index, vertex v1, vertex v2,
+                           vertex v3) const;
 
   // Return the corner corresponding to vertex 'v' in the tet whose base corner
   // is tb
-  uint64_t tetCornerAtVertex(uint64_t tb, uint32_t v) const {
+  corner tetCornerAtVertex(corner tb, vertex v) const {
     return ((tet_node[tb] == v) * (tb)) + ((tet_node[tb + 1] == v) * (tb + 1)) +
            ((tet_node[tb + 2] == v) * (tb + 2)) +
            ((tet_node[tb + 3] == v) * (tb + 3));
@@ -185,21 +227,26 @@ public:
     // return tb;
   }
 
+  corner get_corner_in_tet(tetrahedra t, vertex v) const {
+    return tetCornerAtVertex(get_base_corner(t), v);
+  }
+  uint32_t get_index_of_vertex_in_tet(vertex v, tetrahedra t_index) const {
+    return get_corner_in_tet(t_index, v) & 3;
+  }
+
+  corner get_base_corner(tetrahedra t) const { return t << 2; }
+
   // Set the adjacency between the two corners c1 and c2
-  void setMutualNeighbors(const uint64_t c1, const uint64_t c2) {
+  void setMutualNeighbors(const corner c1, const corner c2) {
     tet_neigh[c1] = c2;
     tet_neigh[c2] = c1;
   }
 
   // Direct pointer to nodes and neighs
-  uint32_t *getTetNodes(uint64_t tet) { return tet_node.data() + tet; }
-  uint64_t *getTetNeighs(uint64_t tet) { return tet_neigh.data() + tet; }
-  const uint32_t *getTetNodes(uint64_t tet) const {
-    return tet_node.data() + tet;
-  }
-  const uint64_t *getTetNeighs(uint64_t tet) const {
-    return tet_neigh.data() + tet;
-  }
+  vertex *getTetNodes(corner c) { return tet_node.data() + c; }
+  corner *getTetNeighs(corner c) { return tet_neigh.data() + c; }
+  const vertex *getTetNodes(corner c) const { return tet_node.data() + c; }
+  const corner *getTetNeighs(corner c) const { return tet_neigh.data() + c; }
 
   // tetNi is a sum modulo 3 - used to traverse the nodes of a tet
   static size_t tetN1(const size_t i) { return (i + 1) & 3; }
@@ -222,32 +269,32 @@ public:
   // ct is a hint for the algorithm to start searching the tet containing vi
   void insertExistingVertex(const uint32_t vi, uint64_t &ct);
 
-  // Starting from 'tet', move by adjacencies until a tet is found that
-  // contains vi. Return that tet.
-  uint64_t searchTetrahedron(uint64_t tet, const uint32_t v_id);
+  // Starting from 'c', move by adjacencies until a tet is found that
+  // contains vertex v_id. Return that tet.
+  uint64_t searchTetrahedron(corner c, const vertex v_id);
 
   // Incident tetrahedra at a vertex
-  void VT(uint32_t v, std::vector<uint64_t> &vt) const;
+  void VT(vertex v, std::vector<tetrahedra> &vt) const;
 
   // Same as VT, but this one includes ghost tets as well
-  void VTfull(uint32_t v, std::vector<uint64_t> &vt) const;
+  void VTfull(vertex v, std::vector<tetrahedra> &vt) const;
 
   // Adjacent vertices
-  void VV(uint32_t v, std::vector<uint32_t> &vv) const;
+  void VV(vertex v, std::vector<vertex> &vv) const;
 
   // Incident tetrahedra at an edge
-  void ET(uint32_t v1, uint32_t v2, std::vector<uint64_t> &et) const;
-  void ETfull(uint32_t v1, uint32_t v2, std::vector<uint64_t> &et) const;
+  void ET(vertex v1, vertex v2, std::vector<tetrahedra> &et) const;
+  void ETfull(vertex v1, vertex v2, std::vector<tetrahedra> &et) const;
 
   // Incident tetrahedra at an edge represented as ordered sequence of corners
-  void ETcorners(uint32_t v1, uint32_t v2, std::vector<uint64_t> &et) const;
+  void ETcorners(vertex v1, vertex v2, std::vector<corner> &et) const;
 
   // TRUE if v1 and v2 are connected by an edge
-  bool hasEdge(uint32_t v1, uint32_t v2) const;
+  bool hasEdge(vertex v1, vertex v2) const;
 
   // Swap the position of t1 and t2 in the structure and update all relations
   // accordingly
-  void swapTets(const uint64_t t1, const uint64_t t2);
+  void swapTets(const tetrahedra t1, const tetrahedra t2);
 
   // Mark/unmark/check one single bit in tet mask
   inline void mark_Tet_1(const uint64_t t) const {
@@ -281,10 +328,10 @@ public:
   // Thes two functions mark/check one particular bit stating that a tet must be
   // deleted. Differently from above, here a tet is identified by its first
   // corner.
-  void markToDelete(uint64_t c) {
+  void markToDelete(corner c) {
     mark_tetrahedra[c >> 2] |= ((uint32_t)1073741824);
   }
-  bool isToDelete(uint64_t c) const {
+  bool isToDelete(corner c) const {
     return mark_tetrahedra[c >> 2] & ((uint32_t)1073741824);
   }
 
@@ -410,23 +457,24 @@ public:
   // sec 3.2 of tetwild MAX
   void first_pass(std::vector<double> &desired_lengths, double epsilon);
 
-  double get_energy_from_splitting(uint64_t tetrahedra,
-                                   std::pair<uint32_t, uint32_t> edge,
+  double get_energy_from_splitting(tetrahedra tetrahedra, edge edge_to_split,
                                    pointType *potential_split_point);
 
   void first_pass_bis();
 
   // Execute second pass (coarsening) of optimization process as described in
   // sec 3.2 of tetwild MAX
-  void second_pass(double length);
+  void second_pass();
 
   // Return TRUE if the tetrahedra t is fully inside the ball centered on v and
   // of radius length
   // MAX
-  bool is_tet_in_sphere(uint32_t v, double length, uint64_t t);
+  bool is_tet_in_sphere(vertex v, double length, tetrahedra t);
 
   // Split an edge ev0-ev1 into four subtets by inserting an isolated vertex v
-  void splitEdge(uint32_t ev0, uint32_t ev1, uint32_t v);
+  void splitEdge(vertex ev0, vertex ev1, vertex v);
+
+  void splitEdgeBis(edge edge_to_split, vertex split_vertex);
 
   // 2-3 swap
   bool swapFace(uint64_t r, bool prevent_inversion,
@@ -480,6 +528,8 @@ public:
   double getTetEnergy(uint64_t t) const;
 
   double getTotalEnergy();
+  double getMaxEnergy();
+  double getMeanEnergy();
 
   void get_all_tets_energy(std::vector<double> &tets_energy);
 
@@ -487,6 +537,8 @@ public:
   // v of radius length
   // MAX
   void tets_in_ball(uint32_t v, double length, std::vector<uint64_t> &tets);
+
+  void log_tetrahedra(tetrahedra t);
 };
 
 /// <summary>
@@ -508,6 +560,10 @@ public:
   }
   inline vector3d(const pointType *p) {
     p->getApproxXYZCoordinates(c[0], c[1], c[2]);
+  }
+
+  explicitPoint *toExplicitPoint() {
+    return new explicitPoint(c[0], c[1], c[2]);
   }
 
   inline vector3d operator+(const vector3d &v) const {
