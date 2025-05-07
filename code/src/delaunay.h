@@ -55,7 +55,7 @@ public:
                  //                 c_{n,0}, c_{n,1}, c_{n,2}, c_{n,3}]
                  //                 Where c_{i,j} is the corner index (relative
                  //                 to tet_node) of the opposite corner of
-                 //                 vertex v_{i,j} in ith tetrahedra tetrahedra
+                 //                 vertex v_{i,j} in ith tetrahedra
   mutable std::vector<uint32_t> mark_tetrahedra;    // Marks on tets
   mutable std::vector<unsigned char> marked_vertex; // Marks on vertices
 
@@ -165,11 +165,10 @@ public:
     return (t_index << 2) + i;
   }
 
-  uint32_t get_index_of_corner_in_tet(corner c) const { return c & 3; }
+  uint64_t get_index_of_corner_in_tet(corner c) const { return c & 3; }
   // Return tetrahedra index of the corner c
-  tetrahedra get_tetrahedra_index_from_corner(corner c) {
-    return (c & (~3)) >> 2;
-  }
+  tetrahedra get_tetrahedra_index_from_corner(corner c) { return c >> 2; }
+  tetrahedra get_tetrahedra_index_from_corner(corner c) const { return c >> 2; }
 
   // TRUE if tet is ghost
   bool isGhost(tetrahedra t_index) const {
@@ -235,6 +234,7 @@ public:
   }
 
   corner get_base_corner(tetrahedra t) const { return t << 2; }
+  corner get_base_corner_from_corner(corner c) const { return c & (~3); }
 
   // Set the adjacency between the two corners c1 and c2
   void setMutualNeighbors(const corner c1, const corner c2) {
@@ -245,6 +245,10 @@ public:
   // Direct pointer to nodes and neighs
   vertex *getTetNodes(corner c) { return tet_node.data() + c; }
   corner *getTetNeighs(corner c) { return tet_neigh.data() + c; }
+  std::vector<pointType *> getTetPoints(tetrahedra t) {
+    return {vertices[tet_node[t << 2]], vertices[tet_node[(t << 2) + 1]],
+            vertices[tet_node[(t << 2) + 2]], vertices[tet_node[(t << 2) + 3]]};
+  }
   const vertex *getTetNodes(corner c) const { return tet_node.data() + c; }
   const corner *getTetNeighs(corner c) const { return tet_neigh.data() + c; }
 
@@ -455,16 +459,18 @@ public:
 
   // Execute first pass (refining) of optimization process as described in
   // sec 3.2 of tetwild MAX
-  void first_pass(std::vector<double> &desired_lengths, double epsilon);
+  void first_pass();
 
   double get_energy_from_splitting(tetrahedra tetrahedra, edge edge_to_split,
                                    pointType *potential_split_point);
 
-  void first_pass_bis();
+  bool is_good_to_split(edge edge, const std::vector<double> &tets_energy);
 
   // Execute second pass (coarsening) of optimization process as described in
   // sec 3.2 of tetwild MAX
   void second_pass();
+  void third_pass();
+  void fourth_pass();
 
   // Return TRUE if the tetrahedra t is fully inside the ball centered on v and
   // of radius length
