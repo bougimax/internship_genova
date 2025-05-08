@@ -85,13 +85,15 @@ output_inner = ps.register_surface_mesh(
     "Output inner",
     np.array(output_vertices),
     np.array(output_inner_faces),
-    edge_width=1,
+    edge_width=2,
+    transparency=0.5,
 )
-output_outer = ps.register_surface_mesh(
-    "Output outer",
-    np.array(output_vertices),
-    np.array(output_outer_faces),
-    enabled=False,
-    edge_width=1,
-)
+if len(output_outer_faces) > 0:
+    output_outer = ps.register_surface_mesh(
+        "Output outer",
+        np.array(output_vertices),
+        np.array(output_outer_faces),
+        enabled=False,
+        edge_width=1,
+    )
 ps.show()

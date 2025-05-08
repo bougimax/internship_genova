@@ -1,3 +1,4 @@
+#include "numeric_wrapper.h"
 #ifdef _MSC_VER // Workaround for known bug on MSVC
 #define _HAS_STD_BYTE                                                          \
   0 // https://developercommunity.visualstudio.com/t/error-c2872-byte-ambiguous-symbol/93889
@@ -114,6 +115,10 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
   }
 
   if (optimize) {
+    // pointType *test_split_point = vector3d(0, 0, 0).toExplicitPoint();
+    // tin->pushVertex(test_split_point);
+    // tin->splitEdgeBis(std::make_pair(0, 5), 6);
+    // tin->splitEdge(0, 5, 6);
     std::cout << "Before optimization mean energy is " << tin->getMeanEnergy()
               << std::endl;
     std::cout << "Before optimization max energy is " << tin->getMaxEnergy()

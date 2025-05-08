@@ -465,6 +465,8 @@ public:
                                    pointType *potential_split_point);
 
   bool is_good_to_split(edge edge, const std::vector<double> &tets_energy);
+  std::pair<bool, uint32_t>
+  is_good_to_collapse(edge edge, const std::vector<double> &tets_energy);
 
   // Execute second pass (coarsening) of optimization process as described in
   // sec 3.2 of tetwild MAX
@@ -480,7 +482,8 @@ public:
   // Split an edge ev0-ev1 into four subtets by inserting an isolated vertex v
   void splitEdge(vertex ev0, vertex ev1, vertex v);
 
-  void splitEdgeBis(edge edge_to_split, vertex split_vertex);
+  void splitEdgeBis(edge edge_to_split, vertex split_vertex,
+                    std::vector<double> &tets_energy);
 
   // 2-3 swap
   bool swapFace(uint64_t r, bool prevent_inversion,
