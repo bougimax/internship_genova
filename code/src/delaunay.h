@@ -2,6 +2,8 @@
 #define _DELAUNAY_
 
 #include "numeric_wrapper.h"
+#include "polyscope/curve_network.h"
+#include "polyscope/polyscope.h"
 #include <assert.h>
 #include <chrono>
 #include <cstdint>
@@ -455,16 +457,19 @@ public:
 
   /// Operations to optimize the mesh
 
-  void optimizeMesh();
+  void optimizeMesh(bool register_split = false);
 
   // Execute first pass (refining) of optimization process as described in
   // sec 3.2 of tetwild MAX
-  void first_pass();
+  void first_pass(bool register_split = false);
 
   double get_energy_from_splitting(tetrahedra tetrahedra, edge edge_to_split,
                                    pointType *potential_split_point);
 
   bool is_good_to_split(edge edge, const std::vector<double> &tets_energy);
+
+  bool link_condition(edge e);
+
   std::pair<bool, uint32_t>
   is_good_to_collapse(edge edge, const std::vector<double> &tets_energy);
 
@@ -483,7 +488,8 @@ public:
   void splitEdge(vertex ev0, vertex ev1, vertex v);
 
   void splitEdgeBis(edge edge_to_split, vertex split_vertex,
-                    std::vector<double> &tets_energy);
+                    std::vector<double> &tets_energy,
+                    std::vector<vertex> &splitted_tetrahedras);
 
   // 2-3 swap
   bool swapFace(uint64_t r, bool prevent_inversion,
@@ -548,6 +554,10 @@ public:
   void tets_in_ball(uint32_t v, double length, std::vector<uint64_t> &tets);
 
   void log_tetrahedra(tetrahedra t);
+
+  ////// Visualization function ////////
+
+  void register_tetrahedrisation(string mesh_name);
 };
 
 /// <summary>

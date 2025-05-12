@@ -20,6 +20,8 @@ project(cdt)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+add_subdirectory("deps/polyscope")
+
 # add the executable
 add_executable(${PROJECT_NAME} 
     src/giftWrap.cpp
@@ -73,3 +75,4 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 	include
 )
 
+target_link_libraries(${PROJECT_NAME} polyscope)

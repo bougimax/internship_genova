@@ -1,4 +1,5 @@
 #include "numeric_wrapper.h"
+#include <cstdint>
 #ifdef _MSC_VER // Workaround for known bug on MSVC
 #define _HAS_STD_BYTE                                                          \
   0 // https://developercommunity.visualstudio.com/t/error-c2872-byte-ambiguous-symbol/93889
@@ -7,8 +8,11 @@
 #include "PLC.h"
 #include "delaunay.h"
 #include "inputPLC.h"
+#include "polyscope/polyscope.h"
+#include "polyscope/volume_mesh.h"
 #include <fstream>
 #include <iostream>
+#include <ostream>
 
 using namespace std;
 
@@ -115,27 +119,19 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
   }
 
   if (optimize) {
-    // pointType *test_split_point = vector3d(0, 0, 0).toExplicitPoint();
-    // tin->pushVertex(test_split_point);
-    // tin->splitEdgeBis(std::make_pair(0, 5), 6);
-    // tin->splitEdge(0, 5, 6);
     std::cout << "Before optimization mean energy is " << tin->getMeanEnergy()
               << std::endl;
     std::cout << "Before optimization max energy is " << tin->getMaxEnergy()
               << std::endl;
     for (int i = 0; i < 1; i++) {
-      tin->optimizeMesh();
-      // std::cout << "After optimization pass " << i << " mean energy is "
-      //           << tin->getMeanEnergy() << std::endl;
-      // std::cout << "After optimization pass " << i << " max energy is "
-      //           << tin->getMaxEnergy() << "\n"
-      //           << std::endl;
+      tin->optimizeMesh(true);
     }
     std::cout << "After optimization max energy is " << tin->getMaxEnergy()
               << std::endl;
     std::cout << "After optimization mean energy is " << tin->getMeanEnergy()
               << std::endl;
   }
+
   return tin;
 }
 
@@ -212,6 +208,7 @@ bool saveOutputFile(TetMesh &tin, const char *filename, const char *options) {
 
 int main(int argc, char *argv[]) {
   initFPU();
+  polyscope::init();
 
   if (argc < 2) {
     std::cout << "CDT - Create a constrained Delaunay tetrahedrization out of "
@@ -262,5 +259,6 @@ int main(int argc, char *argv[]) {
   if (saveOutputFile(*tin, filename, options.c_str()))
     printf("Finished\n");
 
+  polyscope::show();
   return 0;
 }

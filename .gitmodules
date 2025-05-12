@@ -1,0 +1,3 @@
+[submodule "code/code/deps/polyscope"]
+	path = code/code/deps/polyscope
+	url = https://github.com/nmwsharp/polyscope
