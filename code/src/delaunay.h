@@ -62,6 +62,7 @@ public:
   mutable std::vector<unsigned char> marked_vertex; // Marks on vertices
 
   std::map<vertex, vertex> temp_remap;
+  std::vector<double> tetrahedras_energy;
 
   // Gift-wrapping fields
   std::vector<int> memo_o3d;
@@ -163,11 +164,17 @@ public:
   /////// Local (element-based) functions ///////
 
   void remap_edge(TetMesh::edge &edge) {
-    while (temp_remap.contains(edge.first))
+    while (temp_remap.contains(edge.first)) {
+      // std::cout << "Redirecting " << edge.first << " to "
+      //           << temp_remap[edge.first] << std::endl;
       edge.first = temp_remap[edge.first];
+    }
 
-    while (temp_remap.contains(edge.second))
+    while (temp_remap.contains(edge.second)) {
+      // std::cout << "Redirecting " << edge.second << " to "
+      //           << temp_remap[edge.second] << std::endl;
       edge.second = temp_remap[edge.second];
+    }
   }
 
   // Return ith vertex id of tetrahedra t
@@ -477,7 +484,7 @@ public:
 
   /// Operations to optimize the mesh
 
-  void optimizeMesh(bool register_split = false);
+  void optimizeMesh(int num_opt, bool register_split = false);
 
   // Execute first pass (refining) of optimization process as described in
   // sec 3.2 of tetwild MAX
@@ -486,12 +493,13 @@ public:
   double get_energy_from_splitting(tetrahedra tetrahedra, edge edge_to_split,
                                    pointType *potential_split_point);
 
-  bool is_good_to_split(edge edge, const std::vector<double> &tets_energy);
+  bool is_good_to_split(edge edge);
+
+  std::pair<bool, pointType *> is_good_to_move(vertex v);
 
   bool link_condition(edge e);
 
-  std::pair<bool, uint32_t>
-  is_good_to_collapse(edge edge, const std::vector<double> &tets_energy);
+  std::pair<bool, uint32_t> is_good_to_collapse(edge &edge);
 
   double get_energy_from_swapping_face(corner c);
 
@@ -509,9 +517,7 @@ public:
   // Split an edge ev0-ev1 into four subtets by inserting an isolated vertex v
   void splitEdge(vertex ev0, vertex ev1, vertex v);
 
-  void splitEdgeBis(edge edge_to_split, vertex split_vertex,
-                    std::vector<double> &tets_energy,
-                    std::vector<vertex> &splitted_tetrahedras);
+  void splitEdgeBis(edge edge_to_split, vertex split_vertex);
 
   // 2-3 swap
   bool swapFace(uint64_t r, bool prevent_inversion,
@@ -570,7 +576,7 @@ public:
   double getMaxEnergy();
   double getMeanEnergy();
 
-  void get_all_tets_energy(std::vector<double> &tets_energy);
+  void get_all_tets_energy();
 
   // Put in tets all the tetrahedras that are completely in the ball centered on
   // v of radius length
