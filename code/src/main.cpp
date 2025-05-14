@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <ostream>
+#include <string>
 
 using namespace std;
 
@@ -123,8 +124,10 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
               << std::endl;
     std::cout << "Before optimization max energy is " << tin->getMaxEnergy()
               << std::endl;
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 10; i++) {
+      tin->register_tetrahedrisation("Before optim pass " + std::to_string(i));
       tin->optimizeMesh(true);
+      tin->register_tetrahedrisation("After optim pass " + std::to_string(i));
     }
     std::cout << "After optimization max energy is " << tin->getMaxEnergy()
               << std::endl;

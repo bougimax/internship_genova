@@ -61,6 +61,8 @@ public:
   mutable std::vector<uint32_t> mark_tetrahedra;    // Marks on tets
   mutable std::vector<unsigned char> marked_vertex; // Marks on vertices
 
+  std::map<vertex, vertex> temp_remap;
+
   // Gift-wrapping fields
   std::vector<int> memo_o3d;
   std::vector<std::vector<int>>
@@ -140,6 +142,10 @@ public:
   // Clear deleted vertices after removal
   void removeDelVertices();
 
+  void remove_vertex(vertex v);
+
+  void remove_tetrahedra(tetrahedra t);
+
   // Resize the whole structure to contain 'new_size' tets
   void resizeTets(uint64_t new_size);
   void reserveTets(uint64_t new_capacity);
@@ -152,9 +158,17 @@ public:
                                  size_t &num_flattened) const;
 
   // Check whether the structure is coherent (use for debugging purposes)
-  void checkMesh(bool checkDelaunay = true) const;
+  void checkMesh(bool checkDelaunay = true);
 
   /////// Local (element-based) functions ///////
+
+  void remap_edge(TetMesh::edge &edge) {
+    while (temp_remap.contains(edge.first))
+      edge.first = temp_remap[edge.first];
+
+    while (temp_remap.contains(edge.second))
+      edge.second = temp_remap[edge.second];
+  }
 
   // Return ith vertex id of tetrahedra t
   vertex get_i_th_vertex_of_tetrahedra(tetrahedra t_index, uint32_t i) {
@@ -220,9 +234,15 @@ public:
   // Return the corner corresponding to vertex 'v' in the tet whose base corner
   // is tb
   corner tetCornerAtVertex(corner tb, vertex v) const {
-    return ((tet_node[tb] == v) * (tb)) + ((tet_node[tb + 1] == v) * (tb + 1)) +
-           ((tet_node[tb + 2] == v) * (tb + 2)) +
-           ((tet_node[tb + 3] == v) * (tb + 3));
+    if (tet_node[tb] == v)
+      return tb;
+    if (tet_node[tb + 1] == v)
+      return tb + 1;
+    if (tet_node[tb + 2] == v)
+      return tb + 2;
+    if (tet_node[tb + 3] == v)
+      return tb + 3;
+    return UINT64_MAX;
 
     // while (tet_node[tb] != v) tb++;
     // return tb;
@@ -286,7 +306,7 @@ public:
   void VTfull(vertex v, std::vector<tetrahedra> &vt) const;
 
   // Adjacent vertices
-  void VV(vertex v, std::vector<vertex> &vv) const;
+  void VV(vertex v, std::vector<vertex> &vv);
 
   // Incident tetrahedra at an edge
   void ET(vertex v1, vertex v2, std::vector<tetrahedra> &et) const;
@@ -343,7 +363,7 @@ public:
 
   // Marks a tet (identified by its first corner) as 'removed' and add it to the
   // queue for eventual deletion.
-  void pushAndMarkDeletedTets(uint64_t c) {
+  void pushAndMarkDeletedTets(corner c) {
     Del_deleted.push_back(c);
     markToDelete(c);
   }
@@ -473,6 +493,8 @@ public:
   std::pair<bool, uint32_t>
   is_good_to_collapse(edge edge, const std::vector<double> &tets_energy);
 
+  double get_energy_from_swapping_face(corner c);
+
   // Execute second pass (coarsening) of optimization process as described in
   // sec 3.2 of tetwild MAX
   void second_pass();
@@ -501,6 +523,8 @@ public:
   // Collapse an edge onto its first endpoint
   bool collapseOnV1(uint32_t v1, uint32_t v2, bool prevent_inversion,
                     double min_energy = DBL_MAX);
+
+  bool collapseOnV1bis(uint32_t v1, uint32_t v2);
 
   // Fill 'bet' with boundary faces incident at v1-v2
   void boundaryETcorners(uint32_t v1, uint32_t v2,
