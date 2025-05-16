@@ -1,9 +1,134 @@
 \documentclass{article}
+\usepackage{report}
 \title{Internship report}
 \author{Max Royer}
 \date{\today}
 \begin{document}
 \maketitle
+
+% Regular tetrahedra
+\tdplotsetmaincoords{70}{45} % view angle
+\begin{tikzpicture}[tdplot_main_coords, scale=3]
+
+  % Vertices
+  \coordinate (A) at (0,0,0);
+  \coordinate (B) at (1,0,0);
+  \coordinate (C) at (0.5,0.866,0); % equilateral basis
+  \coordinate (D) at (0.5,0.2887,0.8165);
+
+  % Edges
+  \draw[thick, line cap=round] (A) -- (D);
+  \draw[thick, line cap=round] (B) -- (D);
+  \draw[thick, line cap=round] (C) -- (D);
+  \draw[thick, line cap=round] (A) -- (B);
+  \draw[thick, line cap=round] (B) -- (C);
+  \draw[dashed, line cap=round] (C) -- (A);
+
+  % Points
+  \draw (A) node[anchor=north east] {A};
+  \draw (B) node[anchor=north east] {B};
+  \draw (C) node[anchor=north west] {C};
+  \draw (D) node[anchor=south west] {D};
+
+\end{tikzpicture}
+
+% Splitted tetrahedra
+\tdplotsetmaincoords{70}{45} % view angle
+\begin{tikzpicture}[tdplot_main_coords, scale=3]
+
+  % Vertices
+  \coordinate (A) at (0,0,0);
+  \coordinate (B) at (1,0,0);
+  \coordinate (C) at (0.5,0.866,0); % equilateral basis
+  \coordinate (D) at (0.5,0.2887,0.8165);
+  \coordinate (E) at (0.5,0,0);
+
+  % Edges
+  \draw[thick, line cap=round] (A) -- (D);
+  \draw[thick, line cap=round] (B) -- (D);
+  \draw[thick, line cap=round] (C) -- (D);
+  \draw[thick, line cap=round] (A) -- (B);
+  \draw[thick, line cap=round] (B) -- (C);
+  \draw[dashed, line cap=round] (C) -- (A);
+  \draw[thick, line cap=round, draw=red] (E) -- (D);
+  \draw[dashed, line cap=round, draw=red] (E) -- (C);
+
+  % Points
+  \draw (A) node[anchor=north east] {A};
+  \draw (B) node[anchor=north east] {B};
+  \draw (C) node[anchor=north west] {C};
+  \draw (D) node[anchor=south west] {D};
+  \draw (E) node[anchor=north east] {M};
+
+\end{tikzpicture}
+
+% Edge collapse before
+\tdplotsetmaincoords{70}{45} % view angle
+\begin{tikzpicture}[tdplot_main_coords, scale=3]
+
+  % Vertices
+  \coordinate (A) at (0,0,0);
+  \coordinate (B) at (1,0,0);
+  \coordinate (C) at (0.5,0.866,0); % equilateral basis
+  \coordinate (D) at (0.5,0.2887,0.8165);
+  \coordinate (E) at (1.4,0.4,0.55);
+  \coordinate (F) at (-0.4,0.4,0.55);
+
+  % Edges
+  \draw[thick, line cap=round] (A) -- (D);
+  \draw[thick, line cap=round] (A) -- (F);
+  \draw[thick, line cap=round] (D) -- (F);
+  \draw[thick, line cap=round] (B) -- (D);
+  \draw[dashed, line cap=round] (C) -- (D);
+  \draw[thick, line cap=round, draw=red] (A) -- (B);
+  \draw[dashed, line cap=round] (B) -- (C);
+  \draw[thick, line cap=round] (B) -- (E);
+  \draw[dashed, line cap=round] (C) -- (E);
+  \draw[dashed, line cap=round] (C) -- (F);
+  \draw[thick, line cap=round] (D) -- (E);
+  \draw[dashed, line cap=round] (C) -- (A);
+
+  % Points
+  \draw (A) node[anchor=north east] {A};
+  \draw (B) node[anchor=north east] {B};
+  \draw (C) node[anchor=north west] {C};
+  \draw (D) node[anchor=south west] {D};
+  \draw (E) node[anchor=south west] {E};
+  \draw (F) node[anchor=south east] {F};
+
+\end{tikzpicture}
+
+% Edge collapse after
+\tdplotsetmaincoords{70}{50} % view angle
+\begin{tikzpicture}[tdplot_main_coords, scale=3]
+
+  % Vertices
+  \coordinate (A) at (0,0,0);
+  \coordinate (C) at (0.5,0.866,0); % equilateral basis
+  \coordinate (D) at (0.5,0.2887,0.8165);
+  \coordinate (E) at (1.4,0.4,0.55);
+  \coordinate (F) at (-0.4,0.4,0.55);
+
+  % Edges
+  \draw[thick, line cap=round] (A) -- (D);
+  \draw[thick, line cap=round] (A) -- (F);
+  \draw[thick, line cap=round] (D) -- (F);
+  \draw[dashed, line cap=round] (C) -- (D);
+  \draw[thick, line cap=round] (A) -- (E);
+  \draw[thick, line cap=round] (C) -- (E);
+  \draw[dashed, line cap=round] (C) -- (F);
+  \draw[thick, line cap=round] (D) -- (E);
+  \draw[thick, line cap=round] (C) -- (A);
+
+  % Points
+  \draw (A) node[anchor=north east] {A};
+  \draw (C) node[anchor=north west] {C};
+  \draw (D) node[anchor=south west] {D};
+  \draw (E) node[anchor=south west] {E};
+  \draw (F) node[anchor=south east] {F};
+
+\end{tikzpicture}
+
 
 
 \end{document}

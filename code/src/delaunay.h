@@ -322,6 +322,9 @@ public:
   // Incident tetrahedra at an edge represented as ordered sequence of corners
   void ETcorners(vertex v1, vertex v2, std::vector<corner> &et) const;
 
+  void OneRing(TetMesh::edge e, std::vector<vertex> &one_ring,
+               std::vector<tetrahedra> &incident_tetrahedras);
+
   // TRUE if v1 and v2 are connected by an edge
   bool hasEdge(vertex v1, vertex v2) const;
 
@@ -490,6 +493,10 @@ public:
   // sec 3.2 of tetwild MAX
   void first_pass(bool register_split = false);
 
+  double energy_of_split(tetrahedra t, TetMesh::edge e, double m);
+  double derivate_energy_of_split(tetrahedra t, TetMesh::edge e, double m);
+  double find_best_split_point(TetMesh::edge e, int num_newton_iteration);
+
   double get_energy_from_splitting(tetrahedra tetrahedra, edge edge_to_split,
                                    pointType *potential_split_point);
 
@@ -499,9 +506,11 @@ public:
 
   bool link_condition(edge e);
 
-  std::pair<bool, uint32_t> is_good_to_collapse(edge &edge);
+  std::pair<bool, uint32_t> is_good_to_collapse(edge &edge,
+                                                bool verbose = false);
 
   double get_energy_from_swapping_face(corner c);
+  std::pair<bool, vertex> is_good_to_swap_edge(TetMesh::edge e);
 
   // Execute second pass (coarsening) of optimization process as described in
   // sec 3.2 of tetwild MAX
@@ -530,7 +539,7 @@ public:
   bool collapseOnV1(uint32_t v1, uint32_t v2, bool prevent_inversion,
                     double min_energy = DBL_MAX);
 
-  bool collapseOnV1bis(uint32_t v1, uint32_t v2);
+  bool collapseOnV1bis(uint32_t v1, uint32_t v2, bool force_collapsing = false);
 
   // Fill 'bet' with boundary faces incident at v1-v2
   void boundaryETcorners(uint32_t v1, uint32_t v2,
