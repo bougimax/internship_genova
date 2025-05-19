@@ -120,17 +120,24 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
   }
 
   if (optimize) {
+    ofstream mean_energy, max_energy;
+    mean_energy.open("mean_energy.txt");
+    max_energy.open("max_energy.txt");
     tin->get_all_tets_energy();
     std::cout << "Before optimization mean energy is " << tin->getMeanEnergy()
               << std::endl;
     std::cout << "Before optimization max energy is " << tin->getMaxEnergy()
               << std::endl;
     tin->register_tetrahedrisation("Before optim");
-    for (int i = 0; i < 200; i++) {
+    mean_energy << tin->getMeanEnergy() << std::endl;
+    max_energy << tin->getMaxEnergy() << std::endl;
+    for (int i = 0; i < 50; i++) {
       std::cout << "Starting optimizing pass " << i << std::endl;
       // tin->register_tetrahedrisation("Before optim pass " +
       // std::to_string(i));
       tin->optimize_mesh(i);
+      mean_energy << tin->getMeanEnergy() << std::endl;
+      max_energy << tin->getMaxEnergy() << std::endl;
       // tin->register_tetrahedrisation("After optim pass " +
       // std::to_string(i));
       std::cout << "Ending optimizing pass " << i << std::endl;
@@ -140,6 +147,8 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
               << std::endl;
     std::cout << "After optimization mean energy is " << tin->getMeanEnergy()
               << std::endl;
+    mean_energy.close();
+    max_energy.close();
   }
 
   return tin;

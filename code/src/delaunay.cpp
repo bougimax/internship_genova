@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <iterator>
 #include <ostream>
+#include <queue>
 #include <set>
 #include <string>
 #include <utility>
@@ -1736,17 +1737,67 @@ void TetMesh::optimize_mesh(int num_opt) {
 
 /// FIRST PASS
 
+struct EdgeOrderFirstPass {
+  TetMesh *mesh;
+
+  EdgeOrderFirstPass(TetMesh *m) : mesh(m) {}
+
+  bool operator()(const TetMesh::edge &e, const TetMesh::edge &f) const {
+    if (mesh->isOnBoundary(e.first, e.second)) {
+      if (mesh->isOnBoundary(f.first, f.second)) {
+        return mesh->maxEnergyAtEdge(e.first, e.second) <
+               mesh->maxEnergyAtEdge(f.first, f.second);
+      } else {
+        return false;
+      }
+    } else {
+      if (mesh->isOnBoundary(f.first, f.second)) {
+        return true;
+      } else {
+        return mesh->maxEnergyAtEdge(e.first, e.second) <
+               mesh->maxEnergyAtEdge(f.first, f.second);
+      }
+    }
+  }
+};
+struct EdgeOrderSecondPass {
+  TetMesh *mesh;
+
+  EdgeOrderSecondPass(TetMesh *m) : mesh(m) {}
+
+  bool operator()(const TetMesh::edge &e, const TetMesh::edge &f) const {
+    if (mesh->isOnBoundary(e.first, e.second)) {
+      if (mesh->isOnBoundary(f.first, f.second)) {
+        return mesh->maxEnergyAtEdge(e.first, e.second) >
+               mesh->maxEnergyAtEdge(f.first, f.second);
+      } else {
+        return true;
+      }
+    } else {
+      if (mesh->isOnBoundary(f.first, f.second)) {
+        return false;
+      } else {
+        return mesh->maxEnergyAtEdge(e.first, e.second) >
+               mesh->maxEnergyAtEdge(f.first, f.second);
+      }
+    }
+  }
+};
+
 void TetMesh::first_pass() {
 
   std::cout << "Starting FIRST pass" << std::endl;
 
   std::vector<TetMesh::edge> edges;
   getMeshEdges(edges);
-  std::vector<TetMesh::edge> edges_to_split;
+  EdgeOrderFirstPass comp(this);
+  std::priority_queue<TetMesh::edge, std::vector<TetMesh::edge>,
+                      EdgeOrderFirstPass>
+      edges_to_split(comp);
 
   for (TetMesh::edge e : edges) {
     if (is_good_to_split(e))
-      edges_to_split.push_back(e);
+      edges_to_split.push(e);
   }
 
   std::cout << "Determined " << edges_to_split.size() << " edges to split"
@@ -1754,12 +1805,9 @@ void TetMesh::first_pass() {
 
   int num_splitted_edges = 0;
 
-  std::sort(edges_to_split.begin(), edges_to_split.end(),
-            [this](TetMesh::edge e, TetMesh::edge f) {
-              return boundaryEdgePriority(e, f);
-            });
-
-  for (TetMesh::edge e : edges_to_split) {
+  while (!edges_to_split.empty()) {
+    TetMesh::edge e = edges_to_split.top();
+    edges_to_split.pop();
     if (is_good_to_split(e)) {
       explicitPoint *potential_split_point =
           ((vector3d(vertices[e.first]) + vector3d(vertices[e.second])) * 0.5)
@@ -1937,8 +1985,8 @@ void TetMesh::second_pass() {
   std::vector<TetMesh::edge> edges;
   getMeshEdges(edges);
   std::set<vertex> deleted_vertices;
-
   std::vector<TetMesh::edge> edges_to_collapse;
+  EdgeOrderSecondPass comp(this);
   TetMesh::edge initial_edge;
 
   for (TetMesh::edge e : edges) {
@@ -1954,8 +2002,9 @@ void TetMesh::second_pass() {
   std::cout << "Determined " << edges_to_collapse.size() << " edges to collapse"
             << std::endl;
 
-  for (TetMesh::edge e : edges_to_collapse) {
+  std::sort(edges_to_collapse.begin(), edges_to_collapse.end(), comp);
 
+  for (TetMesh::edge e : edges_to_collapse) {
     initial_edge = e;
     if (deleted_vertices.contains(initial_edge.first) ||
         deleted_vertices.contains(initial_edge.second))
@@ -2739,21 +2788,16 @@ vector3d getFaceCenter(const TetMesh &tin, uint64_t c) {
 }
 
 double TetMesh::maxEnergyAtEdge(uint32_t v1, uint32_t v2) const {
-  std::vector<uint64_t> etf;
-  ETfull(v1, v2, etf);
+  std::vector<uint64_t> incident_tetrahedras;
+  ET(v1, v2, incident_tetrahedras);
 
-  double pre_energy = 0.0;
-  for (uint64_t t : etf) {
-    const uint32_t *n = tet_node.data() + (t << 2);
-    if (n[3] != INFINITE_VERTEX) {
-      double al = tetEnergy(vertices[n[0]], vertices[n[1]], vertices[n[2]],
-                            vertices[n[3]]);
-      if (al > pre_energy)
-        pre_energy = al;
-    }
+  double max_energy = 0.0;
+  for (uint64_t t : incident_tetrahedras) {
+    if (!has_infinite_vertex(t) && mark_tetrahedra[t] == DT_IN)
+      max_energy = std::max(max_energy, tetrahedras_energy[t]);
   }
 
-  return pre_energy;
+  return max_energy;
 }
 
 double TetMesh::maxEnergyAtFace(uint64_t t) const {

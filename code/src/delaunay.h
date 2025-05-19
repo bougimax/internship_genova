@@ -61,9 +61,12 @@ public:
   mutable std::vector<uint32_t> mark_tetrahedra;    // Marks on tets
   mutable std::vector<unsigned char> marked_vertex; // Marks on vertices
 
-  std::map<vertex, vertex> temp_remap;  // Temporary map for remapping when removing a vertex
-  std::vector<double> tetrahedras_energy; // Contains the energy for each tetrahedra t necessary to compute optimization pass, 
-                                          // it's initialized with get_all_tets_energy()
+  std::map<vertex, vertex>
+      temp_remap; // Temporary map for remapping when removing a vertex
+  std::vector<double>
+      tetrahedras_energy; // Contains the energy for each tetrahedra t necessary
+                          // to compute optimization pass, it's initialized with
+                          // get_all_tets_energy()
 
   // Gift-wrapping fields
   std::vector<int> memo_o3d;
@@ -494,8 +497,9 @@ public:
   // sec 3.2 of tetwild MAX
   void first_pass();
 
-  // Returns the maximum of the energy of the two tetrahedras that will produce the split 
-  // of the edge on the tetrahedra t that is adjacent to the edge to split
+  // Returns the maximum of the energy of the two tetrahedras that will produce
+  // the split of the edge on the tetrahedra t that is adjacent to the edge to
+  // split
   double get_energy_from_splitting(tetrahedra t, edge edge_to_split,
                                    pointType *potential_split_point);
 
@@ -505,33 +509,37 @@ public:
   // Split the edge edge_to_split with the vertex split_vertex in the middle
   void split_edge(edge edge_to_split, vertex split_vertex);
 
-  // Functions still not achieved to minimize the energy according to the position of the split point on the edge e
+  // Functions still not achieved to minimize the energy according to the
+  // position of the split point on the edge e
   double energy_of_split(tetrahedra t, TetMesh::edge e, double m);
   double derivate_energy_of_split(tetrahedra t, TetMesh::edge e, double m);
   double find_best_split_point(TetMesh::edge e, int num_newton_iteration);
 
   // SECOND PASS related functions:
-  
+
   // Execute second pass (coarsening) of optimization process as described in
   // sec 3.2 of tetwild MAX
   void second_pass();
 
   // Remap and edge for the collapsing pass
   void remap_edge(TetMesh::edge &edge) {
-    while (temp_remap.contains(edge.first)) 
+    while (temp_remap.contains(edge.first)) {
       edge.first = temp_remap[edge.first];
-    while (temp_remap.contains(edge.second))
+    }
+    while (temp_remap.contains(edge.second)) {
       edge.second = temp_remap[edge.second];
+    }
   }
 
-  // Returns a pair, the first is whether it's valid and worth to collapse the edge, the second is on which 
-  // end-vertices it should be collapsed (1 if on edge.first, 2 if on edge.second)
+  // Returns a pair, the first is whether it's valid and worth to collapse the
+  // edge, the second is on which end-vertices it should be collapsed (1 if on
+  // edge.first, 2 if on edge.second)
   std::pair<bool, uint32_t> is_good_to_collapse(edge &edge);
 
   // Returns if the link condition is valid to collapse an edge
-  // For e := v1--v2, it returns if one_ring(v1) \intersected one_ring(v2) = one_ring(e)
-  // where one_ring(vertex) is the neighbour vertices of the vertex and
-  // one_ring(edge) is the vertices that share a face with v1 and v2 (e)
+  // For e := v1--v2, it returns if one_ring(v1) \intersected one_ring(v2) =
+  // one_ring(e) where one_ring(vertex) is the neighbour vertices of the vertex
+  // and one_ring(edge) is the vertices that share a face with v1 and v2 (e)
   bool link_condition(edge e);
 
   // Collapse an edge onto its first endpoint
@@ -542,26 +550,30 @@ public:
   // Execute third pass (swapping) of optimization process as described in
   // sec 3.2 of tetwild MAX
   void third_pass();
- 
-  // Execute the swap of the faces, here the only swap implemented is the 2-3 swap
+
+  // Execute the swap of the faces, here the only swap implemented is the 2-3
+  // swap
   void third_pass_face();
 
-  // Returns if it's valid and worth to swap a face (the face is identified by one of the two corner which is opposed to it)
+  // Returns if it's valid and worth to swap a face (the face is identified by
+  // one of the two corner which is opposed to it)
   bool is_good_to_swap_face(corner face);
 
-  // Returns the maximum energy of the 3 new tetrahedras created by 2-3 swap on the face identified by one of its opposite corner
+  // Returns the maximum energy of the 3 new tetrahedras created by 2-3 swap on
+  // the face identified by one of its opposite corner
   double get_energy_from_swapping_face(corner face);
 
   // 2-3 swap
   bool swap_face(corner face, bool prevent_inversion,
                  double min_energy = DBL_MAX);
 
-  // Execute the swap of the edges, it works by first splitting an edge then collapse one of the edge created
-  // by the split vertex
+  // Execute the swap of the edges, it works by first splitting an edge then
+  // collapse one of the edge created by the split vertex
   void third_pass_edge();
 
-  // Returns a pair where the first is wether it's valid and worth to swap the edge, the second is on which vertex we should 
-  // collapse the edge created by the splitting
+  // Returns a pair where the first is wether it's valid and worth to swap the
+  // edge, the second is on which vertex we should collapse the edge created by
+  // the splitting
   std::pair<bool, vertex> is_good_to_swap_edge(TetMesh::edge e);
 
   // FOURTH PASS related functions:
@@ -570,16 +582,14 @@ public:
   // sec 3.2 of tetwild MAX
   void fourth_pass();
 
-  // Returns a pair where the first is wether it's valid and worth to move the vertex to its center of mass, the second is the center of mass
+  // Returns a pair where the first is wether it's valid and worth to move the
+  // vertex to its center of mass, the second is the center of mass
   std::pair<bool, pointType *> is_good_to_move(vertex v);
-
 
   // Return TRUE if the tetrahedra t is fully inside the ball centered on v and
   // of radius length
   // MAX
   bool is_tet_in_sphere(vertex v, double length, tetrahedra t);
-
-
 
   // Edge removal
   bool removeEdge(uint32_t v1, uint32_t v2, double min_energy = DBL_MAX);
@@ -587,7 +597,6 @@ public:
   // Collapse an edge onto its first endpoint
   bool collapseOnV1(uint32_t v1, uint32_t v2, bool prevent_inversion,
                     double min_energy = DBL_MAX);
-
 
   // Fill 'bet' with boundary faces incident at v1-v2
   void boundaryETcorners(uint32_t v1, uint32_t v2,
