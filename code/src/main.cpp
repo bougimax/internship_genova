@@ -125,11 +125,17 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
               << std::endl;
     std::cout << "Before optimization max energy is " << tin->getMaxEnergy()
               << std::endl;
-    for (int i = 0; i < 20; i++) {
-      tin->register_tetrahedrisation("Before optim pass " + std::to_string(i));
-      tin->optimizeMesh(i, true);
-      tin->register_tetrahedrisation("After optim pass " + std::to_string(i));
+    tin->register_tetrahedrisation("Before optim");
+    for (int i = 0; i < 200; i++) {
+      std::cout << "Starting optimizing pass " << i << std::endl;
+      // tin->register_tetrahedrisation("Before optim pass " +
+      // std::to_string(i));
+      tin->optimize_mesh(i);
+      // tin->register_tetrahedrisation("After optim pass " +
+      // std::to_string(i));
+      std::cout << "Ending optimizing pass " << i << std::endl;
     }
+    tin->register_tetrahedrisation("After optim");
     std::cout << "After optimization max energy is " << tin->getMaxEnergy()
               << std::endl;
     std::cout << "After optimization mean energy is " << tin->getMeanEnergy()
