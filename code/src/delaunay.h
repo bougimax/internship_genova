@@ -86,6 +86,40 @@ public:
     if (!has_outer_vertices)
       flushVertices();
   };
+  struct Op_info {
+    bool is_good;
+    double delta;
+    double pre_energy;
+  };
+
+  struct Split_info : public Op_info {
+    TetMesh::edge edge;
+  };
+  struct Collapse_info : public Op_info {
+    TetMesh::edge edge;
+  };
+  struct Swap_edge_info : public Op_info {
+    TetMesh::edge edge;
+    TetMesh::vertex collapse_vertex;
+  };
+  struct Swap_face_info : public Op_info {
+    std::pair<TetMesh::corner, TetMesh::corner> face;
+  };
+  struct Move_info : public Op_info {
+    TetMesh::vertex vertex;
+    pointType *barycenter;
+  };
+
+template <typename T, typename FieldType>
+struct CompareByField {
+    FieldType T::* field;
+
+    CompareByField(FieldType T::* f) : field(f) {}
+
+    bool operator()(const std::unique_ptr<T>& a, const std::unique_ptr<T>& b) const {
+        return (*a).*field > (*b).*field;
+    }
+};
 
   /////// Global functions ///////
 
@@ -504,7 +538,7 @@ public:
                                    pointType *potential_split_point);
 
   // Returns if it's valid and worth to split the edge
-  bool is_good_to_split(edge e);
+  std::unique_ptr<Split_info> is_good_to_split(edge e);
 
   // Split the edge edge_to_split with the vertex split_vertex in the middle
   void split_edge(edge edge_to_split, vertex split_vertex);
@@ -534,7 +568,7 @@ public:
   // Returns a pair, the first is whether it's valid and worth to collapse the
   // edge, the second is on which end-vertices it should be collapsed (1 if on
   // edge.first, 2 if on edge.second)
-  std::pair<bool, uint32_t> is_good_to_collapse(edge &edge);
+  std::unique_ptr<Collapse_info> is_good_to_collapse(edge &edge);
 
   // Returns if the link condition is valid to collapse an edge
   // For e := v1--v2, it returns if one_ring(v1) \intersected one_ring(v2) =
@@ -557,7 +591,7 @@ public:
 
   // Returns if it's valid and worth to swap a face (the face is identified by
   // one of the two corner which is opposed to it)
-  bool is_good_to_swap_face(corner face);
+  std::unique_ptr<Swap_face_info> is_good_to_swap_face(corner face);
 
   // Returns the maximum energy of the 3 new tetrahedras created by 2-3 swap on
   // the face identified by one of its opposite corner
@@ -574,7 +608,7 @@ public:
   // Returns a pair where the first is wether it's valid and worth to swap the
   // edge, the second is on which vertex we should collapse the edge created by
   // the splitting
-  std::pair<bool, vertex> is_good_to_swap_edge(TetMesh::edge e);
+  std::unique_ptr<Swap_edge_info> is_good_to_swap_edge(TetMesh::edge e);
 
   // FOURTH PASS related functions:
 
@@ -584,7 +618,11 @@ public:
 
   // Returns a pair where the first is wether it's valid and worth to move the
   // vertex to its center of mass, the second is the center of mass
-  std::pair<bool, pointType *> is_good_to_move(vertex v);
+  std::unique_ptr<Move_info> is_good_to_move(vertex v);
+
+  pointType *get_barycenter(vertex v,
+                            std::vector<tetrahedra> &incident_tetrahedras);
+  void move_vertex(vertex v, pointType *coord_to_move);
 
   // Return TRUE if the tetrahedra t is fully inside the ball centered on v and
   // of radius length
