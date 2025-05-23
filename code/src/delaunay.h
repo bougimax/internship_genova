@@ -2,6 +2,7 @@
 #define _DELAUNAY_
 
 #include "numeric_wrapper.h"
+#include "updatable_priority_queue.h"
 #include "polyscope/curve_network.h"
 #include "polyscope/polyscope.h"
 #include <assert.h>
@@ -67,6 +68,7 @@ public:
       tetrahedras_energy; // Contains the energy for each tetrahedra t necessary
                           // to compute optimization pass, it's initialized with
                           // get_all_tets_energy()
+  bool optimize_only_DT_IN = true;
 
   // Gift-wrapping fields
   std::vector<int> memo_o3d;
@@ -90,10 +92,20 @@ public:
     bool is_good;
     double delta;
     double pre_energy;
+    int prioritize = 0;
   };
 
-  struct Split_info : public Op_info {
+  struct Split_edge_info : public Op_info {
     TetMesh::edge edge;
+    std::map<tetrahedra, double> energy_per_tet;
+    pointType *split_point;
+  };
+  struct Split_tetrahedra_info : public Op_info {
+    TetMesh::tetrahedra tetrahedra;
+    TetMesh::edge edge_1;
+    pointType *split_point_1;
+    TetMesh::edge edge_2;
+    pointType *split_point_2;
   };
   struct Collapse_info : public Op_info {
     TetMesh::edge edge;
@@ -110,16 +122,21 @@ public:
     pointType *barycenter;
   };
 
-template <typename T, typename FieldType>
-struct CompareByField {
-    FieldType T::* field;
+  template <typename T, typename FieldType> struct CompareByField {
+    FieldType T::*field;
 
-    CompareByField(FieldType T::* f) : field(f) {}
+    CompareByField(FieldType T::*f) : field(f) {}
 
-    bool operator()(const std::unique_ptr<T>& a, const std::unique_ptr<T>& b) const {
+    bool operator()(const std::unique_ptr<T> &a,
+                    const std::unique_ptr<T> &b) const {
+      if (a->prioritize > b->prioritize) {
+        return true;
+      } else if (b->prioritize > a->prioritize) {
+        return false;
+      } else
         return (*a).*field > (*b).*field;
     }
-};
+  };
 
   /////// Global functions ///////
 
@@ -538,10 +555,13 @@ struct CompareByField {
                                    pointType *potential_split_point);
 
   // Returns if it's valid and worth to split the edge
-  std::unique_ptr<Split_info> is_good_to_split(edge e);
+  std::unique_ptr<Split_edge_info> get_split_edge_info(edge e);
+
+  void split_edge_and_update(edge e, better_priority_queue::updatable_priority_queue<size_t, double>
+        &queue);
 
   // Split the edge edge_to_split with the vertex split_vertex in the middle
-  void split_edge(edge edge_to_split, vertex split_vertex);
+  void split_edge(edge edge_to_split, vertex split_vertex, std::vector<tetrahedra> &impacted_tetrahedras);
 
   // Functions still not achieved to minimize the energy according to the
   // position of the split point on the edge e
@@ -568,13 +588,15 @@ struct CompareByField {
   // Returns a pair, the first is whether it's valid and worth to collapse the
   // edge, the second is on which end-vertices it should be collapsed (1 if on
   // edge.first, 2 if on edge.second)
-  std::unique_ptr<Collapse_info> is_good_to_collapse(edge &edge);
+  std::unique_ptr<Collapse_info> get_collapse_info(edge &edge);
 
   // Returns if the link condition is valid to collapse an edge
   // For e := v1--v2, it returns if one_ring(v1) \intersected one_ring(v2) =
   // one_ring(e) where one_ring(vertex) is the neighbour vertices of the vertex
   // and one_ring(edge) is the vertices that share a face with v1 and v2 (e)
   bool link_condition(edge e);
+  bool try_to_collapse(std::unique_ptr<Collapse_info> info,
+                       std::set<vertex> &deleted_vertices);
 
   // Collapse an edge onto its first endpoint
   bool collapse_on_v1(uint32_t v1, uint32_t v2);
@@ -588,10 +610,11 @@ struct CompareByField {
   // Execute the swap of the faces, here the only swap implemented is the 2-3
   // swap
   void third_pass_face();
+  bool try_to_swap_face(std::unique_ptr<Swap_face_info> info);
 
   // Returns if it's valid and worth to swap a face (the face is identified by
   // one of the two corner which is opposed to it)
-  std::unique_ptr<Swap_face_info> is_good_to_swap_face(corner face);
+  std::unique_ptr<Swap_face_info> get_swap_face_info(corner face);
 
   // Returns the maximum energy of the 3 new tetrahedras created by 2-3 swap on
   // the face identified by one of its opposite corner
@@ -604,25 +627,35 @@ struct CompareByField {
   // Execute the swap of the edges, it works by first splitting an edge then
   // collapse one of the edge created by the split vertex
   void third_pass_edge();
+  bool try_to_swap_edge(std::unique_ptr<Swap_edge_info> info);
 
   // Returns a pair where the first is wether it's valid and worth to swap the
   // edge, the second is on which vertex we should collapse the edge created by
   // the splitting
-  std::unique_ptr<Swap_edge_info> is_good_to_swap_edge(TetMesh::edge e);
+  std::unique_ptr<Swap_edge_info> get_swap_edge_info(TetMesh::edge e);
 
   // FOURTH PASS related functions:
 
   // Execute fourth pass (smoothing) of optimization process as described in
   // sec 3.2 of tetwild MAX
   void fourth_pass();
+  bool try_to_move(std::unique_ptr<Move_info> info);
 
   // Returns a pair where the first is wether it's valid and worth to move the
   // vertex to its center of mass, the second is the center of mass
-  std::unique_ptr<Move_info> is_good_to_move(vertex v);
+  std::unique_ptr<Move_info> get_move_info(vertex v);
 
   pointType *get_barycenter(vertex v,
                             std::vector<tetrahedra> &incident_tetrahedras);
   void move_vertex(vertex v, pointType *coord_to_move);
+
+  // FIFTH PASS related functions:
+  void fifth_pass();
+
+  std::unique_ptr<TetMesh::Split_tetrahedra_info>
+  get_split_tetrahedra_info(tetrahedra t);
+
+  bool try_to_split_tetrahedra(std::unique_ptr<Split_tetrahedra_info> info);
 
   // Return TRUE if the tetrahedra t is fully inside the ball centered on v and
   // of radius length
@@ -689,7 +722,9 @@ struct CompareByField {
   }
 
   void getMeshEdges(std::vector<std::pair<uint32_t, uint32_t>> &edges) const;
-
+  void get_edges_from_tetrahedras(
+    std::vector<std::pair<uint32_t, uint32_t>> &all_edges,
+    std::vector<tetrahedra> &tets) const;
   size_t iterativelySwapMesh(double th_energy);
 
   double getTetEnergy(uint64_t t) const;

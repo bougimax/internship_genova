@@ -9,6 +9,7 @@ def parse_txt_file(filepath: str) -> list[float]:
 def plot_energy_evolution(folder_paths: list[str], output_folder: str):
 
     fig, ax = plt.subplots()
+    ax.set_yscale("log")
     for folder_path in folder_paths:
         MAX_ENERGY_FP = folder_path + "/max_energy.txt"
         max_energy = parse_txt_file(MAX_ENERGY_FP)
@@ -24,6 +25,7 @@ def plot_energy_evolution(folder_paths: list[str], output_folder: str):
     fig.savefig(output_folder + "/max_energy_evolution.pdf")
 
     fig, ax = plt.subplots()
+    ax.set_yscale("log")
     for folder_path in folder_paths:
         MEAN_ENERGY_FP = folder_path + "/mean_energy.txt"
         mean_energy = parse_txt_file(MEAN_ENERGY_FP)
@@ -39,12 +41,8 @@ def plot_energy_evolution(folder_paths: list[str], output_folder: str):
     plt.show()
 
 
-FOLDER_PATHS = [
-    "2025-05-21_sort_pre_energy",
-    "2025-05-21_sort_delta",
-    "2025-05-21_no_sort",
-]
+FOLDER_PATHS = ["sphere_delta", "sphere_pre_energy"]
 
-OUTPUT_FOLDER = "comparison"
+OUTPUT_FOLDER = "output/comparison_sphere"
 
 plot_energy_evolution(FOLDER_PATHS, OUTPUT_FOLDER)
