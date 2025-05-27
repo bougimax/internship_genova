@@ -89,7 +89,8 @@ public:
    * */
   bool push(const Key &key, const Priority &priority,
             bool only_if_unknown = false) {
-    if (id_to_heappos.contains(key)) return false;
+    if (id_to_heappos.contains(key))
+      return false;
     // otherwise we have id_to_heappos[key] = -1, unseen key
     size_t n = heap.size();
     id_to_heappos[key] =
