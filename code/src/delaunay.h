@@ -201,10 +201,6 @@ public:
   // Clear deleted vertices after removal
   void removeDelVertices();
 
-  void remove_vertex(vertex v);
-
-  void remove_tetrahedra(tetrahedra t);
-
   // Resize the whole structure to contain 'new_size' tets
   void resizeTets(uint64_t new_size);
   void reserveTets(uint64_t new_capacity);
@@ -415,7 +411,6 @@ public:
   inline uint32_t is_marked_Tet_31(const uint64_t t) const {
     return mark_tetrahedra[t] & ((uint32_t)2147483648);
   }
-  void mark_vertices(std::vector<vertex> &vertices_to_mark, unsigned char mark);
 
   // Thes two functions mark/check one particular bit stating that a tet must be
   // deleted. Differently from above, here a tet is identified by its first
@@ -774,8 +769,6 @@ public:
   void log_tetrahedra(tetrahedra t);
 
   ////// Visualization function ////////
-
-  void register_tetrahedrisation(string mesh_name);
 };
 
 /// <summary>

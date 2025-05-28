@@ -8,6 +8,7 @@
 #include "PLC.h"
 #include "delaunay.h"
 #include "inputPLC.h"
+#include "optimize.h"
 #include "polyscope/polyscope.h"
 #include "polyscope/volume_mesh.h"
 #include <fstream>
@@ -123,29 +124,31 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     ofstream mean_energy, max_energy;
     mean_energy.open("mean_energy.txt");
     max_energy.open("max_energy.txt");
-    tin->get_all_tets_energy();
-    std::cout << "Before optimization mean energy is " << tin->getMeanEnergy()
+    TetMeshOptimizer opt;
+    opt.set_mesh(*tin);
+    opt.get_all_tets_energy();
+    std::cout << "Before optimization mean energy is " << opt.getMeanEnergy()
               << std::endl;
-    std::cout << "Before optimization max energy is " << tin->getMaxEnergy()
+    std::cout << "Before optimization max energy is " << opt.getMaxEnergy()
               << std::endl;
-    tin->register_tetrahedrisation("Before optim");
-    mean_energy << tin->getMeanEnergy() << std::endl;
-    max_energy << tin->getMaxEnergy() << std::endl;
+    opt.register_tetrahedrisation("Before optim");
+    // mean_energy << tin->getMeanEnergy() << std::endl;
+    // max_energy << tin->getMaxEnergy() << std::endl;
     for (int i = 0; i < 50; i++) {
       std::cout << "Starting optimizing pass " << i << std::endl;
       // tin->register_tetrahedrisation("Before optim pass " +
       // std::to_string(i));
-      tin->optimize_mesh(i);
-      mean_energy << tin->getMeanEnergy() << std::endl;
-      max_energy << tin->getMaxEnergy() << std::endl;
+      opt.optimize();
+      // mean_energy << tin->getMeanEnergy() << std::endl;
+      // max_energy << tin->getMaxEnergy() << std::endl;
       // tin->register_tetrahedrisation("After optim pass " +
       // std::to_string(i));
       std::cout << "Ending optimizing pass " << i << std::endl;
     }
-    tin->register_tetrahedrisation("After optim");
-    std::cout << "After optimization max energy is " << tin->getMaxEnergy()
+    opt.register_tetrahedrisation("After optim");
+    std::cout << "After optimization max energy is " << opt.getMaxEnergy()
               << std::endl;
-    std::cout << "After optimization mean energy is " << tin->getMeanEnergy()
+    std::cout << "After optimization mean energy is " << opt.getMeanEnergy()
               << std::endl;
     mean_energy.close();
     max_energy.close();

@@ -28,6 +28,7 @@ add_executable(${PROJECT_NAME}
     src/PLC.cpp
     src/delaunay.cpp
     src/main.cpp
+    src/optimize.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
