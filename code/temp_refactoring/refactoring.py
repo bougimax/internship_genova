@@ -42,27 +42,37 @@ def prefix_method_calls(code, method_names):
     pattern = (
         r"(?<!mesh_->)(?<!::)\b("
         + "|".join(re.escape(m) for m in method_names)
-        + r")\s*\("
+        + r")\s*"
     )
 
     def replacer(match):
         method = match.group(1)
-        return f"mesh_->{method}("
+        return f"mesh_->{method}"
 
     return re.sub(pattern, replacer, code)
 
 
-FILEPATH_ORIGIN = "../src/delaunay.h"
-FILEPATH_TO_MODIFY = "optimize.cpp"
-FILEPATH_H = "optimize.h"
+FILEPATH_ORIGIN = "../src/tetmesh.h"
+FILEPATH_TO_MODIFY = "delaunay.cpp"
+FILEPATH_H = "delaunay.h"
 
 with open(FILEPATH_TO_MODIFY, "r", encoding="utf-8") as f:
     contenu = f.read()
 
 # Méthodes à remplacer (extraites avec le script précédent)
 methodes = extract_methods(FILEPATH_ORIGIN, "TetMesh")
-methodes_to_delete = extract_methods(FILEPATH_H, "TetMeshOptimizer")
-methodes = [x for x in methodes if x not in methodes_to_delete]
+methodes_to_delete = extract_methods(FILEPATH_H, "TetMeshTetrahedrizer")
+methodes = [x for x in methodes if x not in methodes_to_delete] + [
+    "getTetNodes",
+    "getTetNeighs",
+    "resizeTets",
+    "vertices",
+    "inc_tet",
+    "tet_node" "tet_neigh",
+    "mark_tetrahedra",
+    "marked_vertex",
+    "has_outer_vertices",
+]
 # Appliquer le remplacement
 code_modifie = prefix_method_calls(contenu, methodes)
 

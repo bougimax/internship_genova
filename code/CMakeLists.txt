@@ -29,6 +29,7 @@ add_executable(${PROJECT_NAME}
     src/delaunay.cpp
     src/main.cpp
     src/optimize.cpp
+    src/tetmesh.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

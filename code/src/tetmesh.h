@@ -68,9 +68,6 @@ public:
       delete p;
   }
 
-  // Init the mesh with a tet connecting four non coplanar points in vertices
-  void init(uint32_t &unswap_k, uint32_t &unswap_l);
-
   // Save the mesh to a .tet file
   // If inner_only is set, only tets tagged as DT_IN are saved
   bool saveTET(const char *filename, bool inner_only = false) const;
@@ -94,13 +91,6 @@ public:
   // face is a constraint.
   size_t markInnerTets(std::vector<bool> &cornerMask,
                        uint64_t single_start = UINT64_MAX);
-
-  // Clear deleted tets after insertions
-  void removeDelTets();
-  void removeManyDelTets();
-
-  // Clear deleted vertices after removal
-  void removeDelVertices();
 
   // Resize the whole structure to contain 'new_size' tets
   void resizeTets(uint64_t new_size);
@@ -392,5 +382,3 @@ public:
 
   void log_tetrahedra(tetrahedra t);
 };
-
-#endif // _DELAUNAY_
