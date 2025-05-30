@@ -41,8 +41,14 @@ def plot_energy_evolution(folder_paths: list[str], output_folder: str):
     plt.show()
 
 
-FOLDER_PATHS = ["sphere_delta", "sphere_pre_energy"]
+FOLDER_PATHS = [
+    "2025-05-21_no_sort",
+    "2025-05-21_sort_delta",
+    "2025-05-21_sort_pre_energy",
+    "2025-05-30_queue_delta",
+    "2025-05-30_queue_pre_energy",
+]
 
-OUTPUT_FOLDER = "output/comparison_sphere"
+OUTPUT_FOLDER = "output/comparison_sort_queue"
 
 plot_energy_evolution(FOLDER_PATHS, OUTPUT_FOLDER)

@@ -1686,7 +1686,7 @@ void TetMesh::first_pass() {
   for (TetMesh::edge e : edges) {
     std::unique_ptr<Split_edge_info> split_info = get_split_edge_info(e);
     if (split_info->is_good) {
-      edges_to_split.push(edge_to_size_t(e), split_info->pre_energy);
+      edges_to_split.push(edge_to_size_t(e), split_info->delta);
     }
   }
 
@@ -1802,7 +1802,7 @@ void TetMesh::split_edge_and_update(
     std::unique_ptr<Split_edge_info> split_info =
         get_split_edge_info(edge_to_update);
     if (split_info->is_good)
-      queue.set(edge_to_size_t(edge_to_update), split_info->pre_energy);
+      queue.set(edge_to_size_t(edge_to_update), split_info->delta);
     else
       queue.update(edge_to_size_t(edge_to_update), -1);
   }
@@ -1903,7 +1903,7 @@ void TetMesh::second_pass() {
     std::unique_ptr<Collapse_info> collapse_info = get_collapse_info(e);
     if (collapse_info->is_good) {
       edges_to_collapse.push(edge_to_size_t(collapse_info->edge),
-                             collapse_info->pre_energy);
+                             collapse_info->delta);
     }
   }
 
@@ -1951,7 +1951,7 @@ void TetMesh::collapse_on_v1_and_update(
       queue.update(edge_to_size_t(std::make_pair((collapse_info->edge).second,
                                                  (collapse_info->edge).first)),
                    -1);
-      queue.set(edge_to_size_t(collapse_info->edge), collapse_info->pre_energy);
+      queue.set(edge_to_size_t(collapse_info->edge), collapse_info->delta);
     } else {
       queue.update(edge_to_size_t(e), -1);
       queue.update(edge_to_size_t(std::make_pair(e.second, e.first)), -1);
@@ -2206,7 +2206,7 @@ void TetMesh::third_pass_face() {
   for (corner face = 0; face < tet_node.size(); face++) {
     std::unique_ptr<Swap_face_info> swap_info = get_swap_face_info(face);
     if (swap_info->is_good)
-      faces_to_swap.push(face, swap_info->pre_energy);
+      faces_to_swap.push(face, swap_info->delta);
   }
 
   std::cout << "Determined " << faces_to_swap.size() << " faces to swap"
@@ -2239,7 +2239,7 @@ void TetMesh::third_pass_edge() {
     if (swap_info->is_good)
       edges_to_swap.push(
           edge_to_size_t(e),
-          std::make_pair(swap_info->pre_energy, swap_info->collapse_vertex));
+          std::make_pair(swap_info->delta, swap_info->collapse_vertex));
   }
 
   std::cout << "Determined " << edges_to_swap.size() << " edges to swap"
@@ -2269,7 +2269,7 @@ void TetMesh::swap_face_and_update(
   for (corner face : impacted_faces) {
     std::unique_ptr<Swap_face_info> swap_info = get_swap_face_info(face);
     if (swap_info->is_good) {
-      queue.set(face, swap_info->pre_energy);
+      queue.set(face, swap_info->delta);
       queue.update(tet_neigh[face], -1);
     } else {
       queue.update(face, -1);
@@ -2286,8 +2286,8 @@ void TetMesh::swap_edge_and_update(
   for (edge e : impacted_edges) {
     std::unique_ptr<Swap_edge_info> swap_info = get_swap_edge_info(e);
     if (swap_info->is_good) {
-      queue.set(edge_to_size_t(e), std::make_pair(swap_info->pre_energy,
-                                                  swap_info->collapse_vertex));
+      queue.set(edge_to_size_t(e),
+                std::make_pair(swap_info->delta, swap_info->collapse_vertex));
       queue.update(edge_to_size_t(std::make_pair(e.second, e.first)),
                    std::make_pair(-1, 0));
     } else {
@@ -2596,7 +2596,7 @@ void TetMesh::fourth_pass() {
   for (vertex v = 0; v < n_vertices; v++) {
     std::unique_ptr<Move_info> move_info = get_move_info(v);
     if (move_info->is_good)
-      points_to_move.push(v, move_info->pre_energy);
+      points_to_move.push(v, move_info->delta);
   }
 
   std::cout << "Determined " << points_to_move.size() << " points to move"
@@ -2632,7 +2632,7 @@ void TetMesh::move_and_update(
   for (vertex vertex_to_update : impacted_vertices) {
     std::unique_ptr<Move_info> move_info = get_move_info(vertex_to_update);
     if (move_info->is_good)
-      queue.set(vertex_to_update, move_info->pre_energy);
+      queue.set(vertex_to_update, move_info->delta);
     else
       queue.update(vertex_to_update, -1);
   }
