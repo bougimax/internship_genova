@@ -78,15 +78,14 @@ private:
 
   // Proxys
 
-  pointType * get_vertex(TetMesh::vertex vertex_index) {
+  pointType *get_vertex(TetMesh::vertex vertex_index) {
     return mesh_->vertices[vertex_index];
   }
   TetMesh::vertex get_node(TetMesh::corner corner_index) {
-    return mesh_->tet_node[vertex_index];
+    return mesh_->tet_node[corner_index];
   }
 
-  void mark_vertices(std::vector<vertex> &vertices_to_mark,
-                     unsigned char mark);
+  void mark_vertices(std::vector<vertex> &vertices_to_mark, unsigned char mark);
 
   // FIRST PASS related functions:
 

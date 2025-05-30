@@ -4,8 +4,8 @@
 #include "numeric_wrapper.h"
 #include "polyscope/curve_network.h"
 #include "polyscope/polyscope.h"
-#include "updatable_priority_queue.h"
 #include "tetmesh.h"
+#include "updatable_priority_queue.h"
 #include <assert.h>
 #include <chrono>
 #include <cstdint>
@@ -13,6 +13,11 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+
+using vertex = TetMesh::vertex;
+using edge = TetMesh::edge;
+using corner = TetMesh::corner;
+using tetrahedra = TetMesh::tetrahedra;
 
 #pragma intrinsic(fabs)
 
@@ -39,8 +44,8 @@
 
 class TetMeshTetrahedrizer {
 public:
-  TetMehs &mesh; 
-  
+  TetMesh *mesh;
+
   // Gift-wrapping fields
   std::vector<int> memo_o3d;
   std::vector<std::vector<int>>
@@ -49,37 +54,43 @@ public:
 
   std::vector<uint64_t> Del_deleted;
 
-  const bool has_outer_vertices; // This is TRUE if mesh vertices must survive
-                                 // after destruction
 
   // Constructor and destructor
-  TetMeshTetrahedrizer() : has_outer_vertices(false) {};
-  TetMeshTetrahedrizer(bool h) : has_outer_vertices(h) {};
-  ~TetMeshTetrahedrizer() {
-    if (!has_outer_vertices)
-      flushVertices();
-  };
+  TetMeshTetrahedrizer(TetMesh &mesh_)  {mesh = &mesh_;};
+  ~TetMeshTetrahedrizer() {};
   // Init the mesh with a tet connecting four non coplanar points in vertices
   void init(uint32_t &unswap_k, uint32_t &unswap_l);
   // Create a Delaunay tetrahedrization by incremental insertion
   void tetrahedrize();
 
+  // Predicates operating on vertex indexes
+  int vOrient3D(uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4) const {
+    return -pointType::orient3D(*mesh->vertices[v1], *mesh->vertices[v2], *mesh->vertices[v3],
+                                *mesh->vertices[v4]);
+  }
+  int vInSphere(uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4,
+                uint32_t v5) const {
+    return -pointType::inSphere(*mesh->vertices[v1], *mesh->vertices[v2], *mesh->vertices[v3],
+                                *mesh->vertices[v4], *mesh->vertices[v5]);
+  }
   // Marks internal tets ad DT_IN and external as DT_OUT and return the number
   // of internal tets. cornerMask must be TRUE for each corner whose opposite
   // face is a constraint.
   size_t markInnerTets(std::vector<bool> &cornerMask,
                        uint64_t single_start = UINT64_MAX);
 
+  // marks a tet (identified by its first corner) as 'removed' and add it to the
+  // queue for eventual deletion.
+  void pushAndMarkDeletedTets(corner c) {
+    Del_deleted.push_back(c);
+    mesh->markToDelete(c);
+  }
   // Clear deleted tets after insertions
   void removeDelTets();
   void removeManyDelTets();
 
   // Clear deleted vertices after removal
   void removeDelVertices();
-
-  // Resize the whole structure to contain 'new_size' tets
-  void resizeTets(uint64_t new_size);
-  void reserveTets(uint64_t new_capacity);
 
   // Return TRUE if at least one tet becomes flat or inverted after having
   // snapped its vertices to their closest floating-point representable
@@ -189,8 +200,6 @@ public:
   bool isLowerCavityTet(const uint64_t t, std::vector<int> &v_orient) const;
   void recoverFaceGiftWrap(std::vector<uint64_t> &i_tets,
                            std::vector<int> &v_orient);
-
-
 };
 
 /// <summary>

@@ -1,3 +1,18 @@
+#ifndef _TETMESH_
+#define _TETMESH_
+#include "numeric_wrapper.h"
+
+#pragma intrinsic(fabs)
+
+#define INFINITE_VERTEX UINT32_MAX
+#define DT_UNKNOWN 0
+#define DT_OUT 1
+#define DT_IN 2
+
+#define MARKBIT(m, twoPowBit) m |= ((uint32_t)twoPowBit)
+#define UNMARKBIT(m, twoPowBit) m &= (~((uint32_t)twoPowBit))
+#define ISMARKEDBIT(m, twoPowBit) m &((uint32_t)twoPowBit)
+
 class TetMesh {
 public:
   typedef uint32_t vertex;
@@ -23,19 +38,10 @@ public:
                  //                 to tet_node) of the opposite corner of
                  //                 vertex v_{i,j} in ith tetrahedra
 
+  bool has_outer_vertices;
+
   mutable std::vector<uint32_t> mark_tetrahedra;    // Marks on tets
   mutable std::vector<unsigned char> marked_vertex; // Marks on vertices
-
-  // Gift-wrapping fields
-  std::vector<int> memo_o3d;
-  std::vector<std::vector<int>>
-      memo_o3d_v_origbndt; // i-th vector is {orient3d(original_cav_tri_1,v_i),
-                           // ..., orient3d(original_cav_tri_n,v_i)}
-
-  std::vector<uint64_t> Del_deleted;
-
-  const bool has_outer_vertices; // This is TRUE if mesh vertices must survive
-                                 // after destruction
 
   // Constructor and destructor
   TetMesh() : has_outer_vertices(false) {};
@@ -58,6 +64,43 @@ public:
     return numTets() - (uint32_t)std::count(tet_node.begin(), tet_node.end(),
                                             INFINITE_VERTEX);
   }
+  // Thes two functions mark/check one particular bit stating that a tet must be
+  // deleted. Differently from above, here a tet is identified by its first
+  // corner.
+  void markToDelete(corner c) {
+    mark_tetrahedra[c >> 2] |= ((uint32_t)1073741824);
+  }
+  bool isToDelete(corner c) const {
+    return mark_tetrahedra[c >> 2] & ((uint32_t)1073741824);
+  }
+  // Mark/unmark/check one single bit in tet mask
+  inline void mark_Tet_1(const uint64_t t) const {
+    mark_tetrahedra[t] |= ((uint32_t)2);
+  }
+  inline void unmark_Tet_1(const uint64_t t) const {
+    mark_tetrahedra[t] &= (~((uint32_t)2));
+  }
+  inline uint32_t is_marked_Tet_1(const uint64_t t) const {
+    return mark_tetrahedra[t] & ((uint32_t)2);
+  }
+  inline void mark_Tet_2(const uint64_t t) const {
+    mark_tetrahedra[t] |= ((uint32_t)4);
+  }
+  inline void unmark_Tet_2(const uint64_t t) const {
+    mark_tetrahedra[t] &= (~((uint32_t)4));
+  }
+  inline uint32_t is_marked_Tet_2(const uint64_t t) const {
+    return mark_tetrahedra[t] & ((uint32_t)4);
+  }
+  inline void mark_Tet_31(const uint64_t t) const {
+    mark_tetrahedra[t] |= ((uint32_t)2147483648);
+  }
+  inline void unmark_Tet_31(const uint64_t t) const {
+    mark_tetrahedra[t] &= (~((uint32_t)2147483648));
+  }
+  inline uint32_t is_marked_Tet_31(const uint64_t t) const {
+    return mark_tetrahedra[t] & ((uint32_t)2147483648);
+  }
 
   // Fill the vertex vector with newly-created genericPoints
   void init_vertices(const double *coords, uint32_t num_v);
@@ -67,7 +110,6 @@ public:
     for (pointType *p : vertices)
       delete p;
   }
-
   // Save the mesh to a .tet file
   // If inner_only is set, only tets tagged as DT_IN are saved
   bool saveTET(const char *filename, bool inner_only = false) const;
@@ -86,22 +128,9 @@ public:
   // and outer tets
   bool saveRationalTET(const char *filename, bool inner_only = false);
 
-  // Marks internal tets ad DT_IN and external as DT_OUT and return the number
-  // of internal tets. cornerMask must be TRUE for each corner whose opposite
-  // face is a constraint.
-  size_t markInnerTets(std::vector<bool> &cornerMask,
-                       uint64_t single_start = UINT64_MAX);
-
   // Resize the whole structure to contain 'new_size' tets
   void resizeTets(uint64_t new_size);
   void reserveTets(uint64_t new_capacity);
-
-  // Return TRUE if at least one tet becomes flat or inverted after having
-  // snapped its vertices to their closest floating-point representable
-  // positions. Init num_flipped and num_flattened with the overall number of
-  // flips or flattings.
-  bool hasBadSnappedOrientations(size_t &num_flipped,
-                                 size_t &num_flattened) const;
 
   // Check whether the structure is coherent (use for debugging purposes)
   void checkMesh(bool checkDelaunay = true);
@@ -244,10 +273,6 @@ public:
   // ct is a hint for the algorithm to start searching the tet containing vi
   void insertExistingVertex(const uint32_t vi, uint64_t &ct);
 
-  // Starting from 'c', move by adjacencies until a tet is found that
-  // contains vertex v_id. Return that tet.
-  uint64_t searchTetrahedron(corner c, const vertex v_id);
-
   // Incident tetrahedra at a vertex
   void VT(vertex v, std::vector<tetrahedra> &vt) const;
 
@@ -273,63 +298,6 @@ public:
   // Swap the position of t1 and t2 in the structure and update all relations
   // accordingly
   void swapTets(const tetrahedra t1, const tetrahedra t2);
-
-  // Mark/unmark/check one single bit in tet mask
-  inline void mark_Tet_1(const uint64_t t) const {
-    mark_tetrahedra[t] |= ((uint32_t)2);
-  }
-  inline void unmark_Tet_1(const uint64_t t) const {
-    mark_tetrahedra[t] &= (~((uint32_t)2));
-  }
-  inline uint32_t is_marked_Tet_1(const uint64_t t) const {
-    return mark_tetrahedra[t] & ((uint32_t)2);
-  }
-  inline void mark_Tet_2(const uint64_t t) const {
-    mark_tetrahedra[t] |= ((uint32_t)4);
-  }
-  inline void unmark_Tet_2(const uint64_t t) const {
-    mark_tetrahedra[t] &= (~((uint32_t)4));
-  }
-  inline uint32_t is_marked_Tet_2(const uint64_t t) const {
-    return mark_tetrahedra[t] & ((uint32_t)4);
-  }
-  inline void mark_Tet_31(const uint64_t t) const {
-    mark_tetrahedra[t] |= ((uint32_t)2147483648);
-  }
-  inline void unmark_Tet_31(const uint64_t t) const {
-    mark_tetrahedra[t] &= (~((uint32_t)2147483648));
-  }
-  inline uint32_t is_marked_Tet_31(const uint64_t t) const {
-    return mark_tetrahedra[t] & ((uint32_t)2147483648);
-  }
-
-  // Thes two functions mark/check one particular bit stating that a tet must be
-  // deleted. Differently from above, here a tet is identified by its first
-  // corner.
-  void markToDelete(corner c) {
-    mark_tetrahedra[c >> 2] |= ((uint32_t)1073741824);
-  }
-  bool isToDelete(corner c) const {
-    return mark_tetrahedra[c >> 2] & ((uint32_t)1073741824);
-  }
-
-  // Marks a tet (identified by its first corner) as 'removed' and add it to the
-  // queue for eventual deletion.
-  void pushAndMarkDeletedTets(corner c) {
-    Del_deleted.push_back(c);
-    markToDelete(c);
-  }
-
-  // Predicates operating on vertex indexes
-  int vOrient3D(uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4) const {
-    return -pointType::orient3D(*vertices[v1], *vertices[v2], *vertices[v3],
-                                *vertices[v4]);
-  }
-  int vInSphere(uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4,
-                uint32_t v5) const {
-    return -pointType::inSphere(*vertices[v1], *vertices[v2], *vertices[v3],
-                                *vertices[v4], *vertices[v5]);
-  }
 
   // Fill 'bet' with boundary faces incident at v1-v2
   void boundaryETcorners(uint32_t v1, uint32_t v2,
@@ -371,9 +339,9 @@ public:
   // VV relation restricted to incident boundary triangles
   void boundaryVV(uint32_t v, std::vector<uint32_t> &bvv) const;
 
-  // TRUE if v2 incident boundary triangles have no normals different
-  // than those of boundary triangles incident at edge v1-v2.
-  bool isDoubleFlatV2(uint32_t v1, uint32_t v2) const;
+  // // TRUE if v2 incident boundary triangles have no normals different
+  // // than those of boundary triangles incident at edge v1-v2.
+  // bool isDoubleFlatV2(uint32_t v1, uint32_t v2) const;
 
   void getMeshEdges(std::vector<std::pair<uint32_t, uint32_t>> &edges) const;
   void get_edges_from_tetrahedras(
@@ -382,3 +350,4 @@ public:
 
   void log_tetrahedra(tetrahedra t);
 };
+#endif // _TETMESH_

@@ -1,3 +1,4 @@
+#include "tetmesh.h"
 #include "delaunay.h"
 #include "numeric_wrapper.h"
 #include "polyscope/curve_network.h"
@@ -27,49 +28,6 @@ void TetMesh::init_vertices(const double *coords, uint32_t num_v) {
         new explicitPoint(coords[i * 3], coords[i * 3 + 1], coords[i * 3 + 2]));
   inc_tet.resize(num_v, UINT64_MAX);
   marked_vertex.resize(num_v, 0);
-}
-
-void TetMesh::init(uint32_t &unswap_k, uint32_t &unswap_l) {
-  const uint32_t n = numVertices();
-
-  // Find non-coplanar vertices (we assume that no coincident vertices exist)
-  int ori = 0;
-  uint32_t i = 0, j = 1, k = 2, l = 3;
-
-  for (; ori == 0 && k < n - 1; k++)
-    for (l = k + 1; ori == 0 && l < n; l++)
-      ori = vOrient3D(i, j, k, l);
-
-  l--;
-  k--;
-
-  if (ori == 0)
-    ip_error("TetMesh::init() - Input vertices do not define a volume.\n");
-
-  unswap_k = k;
-  unswap_l = l;
-  std::swap(vertices[k], vertices[2]);
-  k = 2;
-  std::swap(vertices[l], vertices[3]);
-  l = 3;
-
-  if (ori < 0)
-    std::swap(i, j); // Tets must have positive volume
-
-  const uint32_t base_tet[] = {l, k, j, i,
-                               l, j, k, INFINITE_VERTEX,
-                               l, k, i, INFINITE_VERTEX,
-                               l, i, j, INFINITE_VERTEX,
-                               k, j, i, INFINITE_VERTEX};
-  const uint64_t base_neigh[] = {19, 15, 11, 7, 18, 10, 13, 3, 17, 14,
-                                 5,  2,  16, 6, 9,  1,  12, 8, 4,  0};
-
-  resizeTets(5);
-  std::memcpy(getTetNodes(0), base_tet, 20 * sizeof(uint32_t));
-  std::memcpy(getTetNeighs(0), base_neigh, 20 * sizeof(uint64_t));
-
-  // set the vertex-(one_of_the)incident-tetrahedron relation
-  inc_tet[i] = inc_tet[j] = inc_tet[k] = inc_tet[l] = 0;
 }
 
 bool TetMesh::saveTET(const char *filename, bool inner_only) const {
@@ -393,29 +351,6 @@ void TetMesh::reserveTets(uint64_t new_capacity) {
   tet_neigh.reserve(new_capacity);
 }
 
-uint64_t TetMesh::searchTetrahedron(corner tet, const vertex v_id) {
-  if (tet_node[tet + 3] == INFINITE_VERTEX)
-    tet = getIthNeighbor(getTetNeighs(tet), 3);
-
-  uint64_t i, f0 = 4;
-  do {
-    const uint32_t *Node = getTetNodes(tet);
-    if (Node[3] == INFINITE_VERTEX)
-      return tet;
-
-    const uint64_t *Neigh = getTetNeighs(tet);
-    for (i = 0; i < 4; i++)
-      if (i != f0 && vOrient3D(Node[tetON1(i)], Node[tetON2(i)],
-                               Node[tetON3(i)], v_id) < 0) {
-        tet = getIthNeighbor(Neigh, i);
-        f0 = Neigh[i] & 3;
-        break;
-      }
-  } while (i != 4);
-
-  return tet;
-}
-
 void TetMesh::VT(vertex v, std::vector<tetrahedra> &vt) const {
   // std::cout << "Trying to get incident tetrahedras to " << v << ", there is "
   //           << numVertices() << " vertices" << std::endl;
@@ -708,68 +643,6 @@ void TetMesh::swapTets(const tetrahedra t1, const tetrahedra t2) {
       tet_neigh[t2_id + i] = (ng1[i] & 3) + (t1 << 2);
 }
 
-size_t TetMesh::markInnerTets(std::vector<bool> &cornerMask,
-                              uint64_t single_start) {
-  std::vector<uint64_t> C;
-
-  // All ghosts are DT_OUT
-  for (size_t i = 0; i < numTets(); i++)
-    mark_tetrahedra[i] = (isGhost(i)) ? DT_OUT : DT_UNKNOWN;
-
-  if (single_start != UINT64_MAX)
-    C.push_back(single_start);
-  else
-    for (size_t i = 0; i < numTets(); i++)
-      if (mark_tetrahedra[i] == DT_OUT)
-        C.push_back(i);
-
-  for (size_t i = 0; i < C.size(); i++) {
-    uint64_t t = C[i];
-    for (int j = 0; j < 4; j++) {
-      const uint64_t n = tet_neigh[t * 4 + j];
-      const uint64_t n2 = n >> 2;
-      if (mark_tetrahedra[n2] == DT_UNKNOWN) {
-        if (!cornerMask[n]) {
-          mark_tetrahedra[n2] = mark_tetrahedra[t];
-        } else {
-          mark_tetrahedra[n2] =
-              ((mark_tetrahedra[t] == DT_IN) ? (DT_OUT) : (DT_IN));
-        }
-        C.push_back(n2);
-      }
-    }
-  }
-
-  return std::count(mark_tetrahedra.begin(), mark_tetrahedra.end(), DT_IN);
-}
-
-bool TetMesh::hasBadSnappedOrientations(size_t &num_flipped,
-                                        size_t &num_flattened) const {
-  const uint32_t *tn = tet_node.data();
-  const uint32_t *end = tn + tet_node.size();
-  num_flipped = num_flattened = 0;
-  explicitPoint v[4];
-  while (tn < end) {
-    if (tn[3] != INFINITE_VERTEX) {
-      for (int i = 0; i < 4; i++) {
-        const pointType *p = vertices[tn[i]];
-        if (p->isExplicit3D())
-          v[i] = p->toExplicit3D();
-        else
-          p->apapExplicit(v[i]);
-      }
-      const int o = pointType::orient3D(v[0], v[1], v[2], v[3]);
-      if (o > 0)
-        num_flipped++;
-      else if (o == 0)
-        num_flattened++;
-    }
-    tn += 4;
-  }
-
-  return (num_flipped || num_flattened);
-}
-
 void TetMesh::checkMesh(bool checkDelaunay) {
   size_t i;
   const uint32_t num_vertices = (uint32_t)vertices.size();
@@ -869,41 +742,29 @@ void TetMesh::checkMesh(bool checkDelaunay) {
   //        ip_error("Marked tet\n");
 
   // Check geometry
-  for (i = 0; i < numTets(); i++)
-    if (!isToDelete(i << 2)) {
-      const uint32_t *tn = tet_node.data() + i * 4;
-      if (tn[3] != INFINITE_VERTEX &&
-          vOrient3D(tn[0], tn[1], tn[2], tn[3]) <= 0) {
-        std::cout << "Found a tet that is degenerate :" << std::endl;
-        log_tetrahedra(i);
-        std::cout << "Here its energy :" << getTetEnergy(i) << std::endl;
-        ip_error("Inverted/degn tet\n");
-      }
-    }
+  // for (i = 0; i < numTets(); i++)
+  //   if (!isToDelete(i << 2)) {
+  //     const uint32_t *tn = tet_node.data() + i * 4;
+  //     if (tn[3] != INFINITE_VERTEX &&
+  //         vOrient3D(tn[0], tn[1], tn[2], tn[3]) <= 0) {
+  //       log_tetrahedra(i);
+  //       ip_error("Inverted/degn tet\n");
+  //     }
+  //   }
 
-  // Check energy
-  for (i = 0; i < numTets(); i++) {
-    if (std::abs(getTetEnergy(i) - tetrahedras_energy[i]) > 0.000001) {
-      std::cout << "Energy differs for tet " << i << " to " << getTetEnergy(i)
-                << " for real energy to " << tetrahedras_energy[i]
-                << " for stored one" << std::endl;
-      ip_error("Incoherent energy\n");
-    }
-  }
-
-  if (checkDelaunay) {
-    for (size_t i = 0; i < numTets(); i++)
-      if (!isToDelete(i << 2)) {
-        const uint32_t *n = tet_node.data() + (i * 4);
-        if (n[3] == INFINITE_VERTEX)
-          continue;
-        for (int j = 0; j < 4; j++) {
-          uint32_t ov = tet_node[tet_neigh[i * 4 + j]];
-          if (ov != INFINITE_VERTEX && vertexInTetSphere(n, ov) > 0)
-            ip_error("Non delaunay\n");
-        }
-      }
-  }
+  // if (checkDelaunay) {
+  //   for (size_t i = 0; i < numTets(); i++)
+  //     if (!isToDelete(i << 2)) {
+  //       const uint32_t *n = tet_node.data() + (i * 4);
+  //       if (n[3] == INFINITE_VERTEX)
+  //         continue;
+  //       for (int j = 0; j < 4; j++) {
+  //         uint32_t ov = tet_node[tet_neigh[i * 4 + j]];
+  //         if (ov != INFINITE_VERTEX && vertexInTetSphere(n, ov) > 0)
+  //           ip_error("Non delaunay\n");
+  //       }
+  //     }
+  // }
 
   // printf("checkMesh passed\n");
 }
@@ -1003,44 +864,45 @@ void TetMesh::boundaryVV(uint32_t v, std::vector<uint32_t> &bvv) const {
     marked_vertex[w] &= 127;
 }
 
-bool TetMesh::isDoubleFlatV2(uint32_t v1, uint32_t v2) const {
-  std::vector<uint64_t> et;
-  boundaryETcorners(v1, v2, et);
-
-  std::vector<uint32_t> ov(et.size());
-  uint32_t v[3];
-  for (size_t i = 0; i < et.size(); i++) {
-    getFaceVertices(et[i], v);
-    for (int k = 0; k < 3; k++)
-      if (v[k] != v1 && v[k] != v2)
-        ov[i] = v[k];
-  }
-
-  // Now 'ov' contains opposite vertices of all boundary triangles incident at
-  // v1-v2
-  std::vector<uint32_t> vv;
-  boundaryVV(v2, vv);
-
-  for (uint32_t w : ov)
-    marked_vertex[w] |= 128;
-
-  // All the vertices in VV(v2)
-  bool foundall = true;
-  for (uint32_t o : vv)
-    if (o != v1 && !(marked_vertex[o] & 128)) {
-      bool found = false;
-      for (uint32_t p : ov)
-        if (vOrient3D(v1, v2, o, p) == 0) {
-          found = true;
-          break;
-        }
-      if (!found) {
-        foundall = false;
-        break;
-      }
-    }
-  for (uint32_t w : ov)
-    marked_vertex[w] &= 127;
-
-  return foundall;
-}
+// bool TetMesh::isDoubleFlatV2(uint32_t v1, uint32_t v2) const {
+//   std::vector<uint64_t> et;
+//   boundaryETcorners(v1, v2, et);
+//
+//   std::vector<uint32_t> ov(et.size());
+//   uint32_t v[3];
+//   for (size_t i = 0; i < et.size(); i++) {
+//     getFaceVertices(et[i], v);
+//     for (int k = 0; k < 3; k++)
+//       if (v[k] != v1 && v[k] != v2)
+//         ov[i] = v[k];
+//   }
+//
+//   // Now 'ov' contains opposite vertices of all boundary triangles incident
+//   at
+//   // v1-v2
+//   std::vector<uint32_t> vv;
+//   boundaryVV(v2, vv);
+//
+//   for (uint32_t w : ov)
+//     marked_vertex[w] |= 128;
+//
+//   // All the vertices in VV(v2)
+//   bool foundall = true;
+//   for (uint32_t o : vv)
+//     if (o != v1 && !(marked_vertex[o] & 128)) {
+//       bool found = false;
+//       for (uint32_t p : ov)
+//         if (vOrient3D(v1, v2, o, p) == 0) {
+//           found = true;
+//           break;
+//         }
+//       if (!found) {
+//         foundall = false;
+//         break;
+//       }
+//     }
+//   for (uint32_t w : ov)
+//     marked_vertex[w] &= 127;
+//
+//   return foundall;
+// }

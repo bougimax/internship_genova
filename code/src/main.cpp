@@ -64,8 +64,9 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     startLogging(plc.input_file_name);
 
   // Build a delaunay tetrahedrization of the vertices
-  TetMesh *tin = new TetMesh;
-  tin->init_vertices(plc.coordinates.data(), plc.numVertices());
+  TetMesh *mesh = new TetMesh;
+  mesh->init_vertices(plc.coordinates.data(), plc.numVertices());
+  TetMeshTetrahedrizer *tin = new TetMeshTetrahedrizer(*mesh);
   tin->tetrahedrize();
 
   if (verbose)
@@ -104,7 +105,7 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     logInteger(plc.numVertices());
     logInteger(Steiner_plc.input_nt);
     logInteger(Steiner_plc.numSteinerVertices());
-    logInteger(tin->countNonGhostTets());
+    logInteger(tin->mesh->countNonGhostTets());
     logInteger(num_inner_tets);
     size_t nflip, nflat;
     tin->hasBadSnappedOrientations(nflip, nflat);
@@ -114,18 +115,18 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     finishLogging();
   }
 
-  if (snap) {
-    if (!tin->optimizeNearDegenerateTets(verbose)) {
-      std::cerr << "Could not force FP representability.\n";
-    }
-  }
+  // if (snap) {
+  //   if (!tin->optimizeNearDegenerateTets(verbose)) {
+  //     std::cerr << "Could not force FP representability.\n";
+  //   }
+  // }
 
   if (optimize) {
     ofstream mean_energy, max_energy;
     mean_energy.open("mean_energy.txt");
     max_energy.open("max_energy.txt");
     TetMeshOptimizer opt;
-    opt.set_mesh(*tin);
+    opt.set_mesh(*(tin->mesh));
     opt.get_all_tets_energy();
     std::cout << "Before optimization mean energy is " << opt.getMeanEnergy()
               << std::endl;
@@ -154,7 +155,7 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     max_energy.close();
   }
 
-  return tin;
+  return tin->mesh;
 }
 
 // saveOutputFile

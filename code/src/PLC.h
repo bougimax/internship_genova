@@ -190,8 +190,8 @@ public:
   const uint32_t input_nt;  // number of input triangles
   const uint32_t *input_tv; // input triangles (linearized vertex IDs)
 
-  TetMesh &delmesh;           // Delaunay tetrahedrization
-  std::vector<PLCedge> edges; // edges of the PLC
+  TetMeshTetrahedrizer &delmesh; // Delaunay tetrahedrization
+  std::vector<PLCedge> edges;    // edges of the PLC
 
   std::vector<int>
       v_orient; // Pre-computed orientation of vertices wrt one plane
@@ -208,9 +208,10 @@ public:
   bool is_polyhedron; // TRUE if all the PLC edges have an even number of
                       // incident faces
 
-  PLCx(TetMesh &m, const uint32_t *_input_tv, const uint32_t _input_nt)
-      : input_nv(m.vertices.size()), input_nt(_input_nt), input_tv(_input_tv),
-        delmesh(m), is_polyhedron(false) {
+  PLCx(TetMeshTetrahedrizer &m, const uint32_t *_input_tv,
+       const uint32_t _input_nt)
+      : input_nv(m.mesh->vertices.size()), input_nt(_input_nt),
+        input_tv(_input_tv), delmesh(m), is_polyhedron(false) {
     initialize();
   };
 
@@ -218,8 +219,8 @@ public:
   void mergePreEdges(); // Removes duplicated pre-edges
 
   void pushVertex(pointType *p, uint32_t acute_v_id) {
-    delmesh.pushVertex(p);
-    delmesh.marked_vertex.push_back(0);
+    delmesh.mesh->pushVertex(p);
+    delmesh.mesh->marked_vertex.push_back(0);
   }
 
   // For each face, for each of its vertices, set of incident face triangles
@@ -235,7 +236,7 @@ public:
   bool isSteinerVertex(uint32_t v) const { return v >= input_nv; }
 
   uint32_t numSteinerVertices() const {
-    return (uint32_t)(delmesh.vertices.size() - input_nv);
+    return (uint32_t)(delmesh.mesh->vertices.size() - input_nv);
   }
 
   bool isAcute(const uint32_t vi,
