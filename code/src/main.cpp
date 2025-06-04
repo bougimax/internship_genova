@@ -135,13 +135,13 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     opt.register_tetrahedrisation("Before optim");
     // mean_energy << tin->getMeanEnergy() << std::endl;
     // max_energy << tin->getMaxEnergy() << std::endl;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 5; i++) {
       std::cout << "Starting optimizing pass " << i << std::endl;
       // tin->register_tetrahedrisation("Before optim pass " +
       // std::to_string(i));
       opt.optimize();
-      // mean_energy << tin->getMeanEnergy() << std::endl;
-      // max_energy << tin->getMaxEnergy() << std::endl;
+      mean_energy << opt.getMeanEnergy() << std::endl;
+      max_energy << opt.getMaxEnergy() << std::endl;
       // tin->register_tetrahedrisation("After optim pass " +
       // std::to_string(i));
       std::cout << "Ending optimizing pass " << i << std::endl;
@@ -204,11 +204,11 @@ bool saveOutputFile(TetMesh &tin, const char *filename, const char *options) {
                    "MEDIT format\n";
       ret = false;
     } else {
-      sprintf(tetfilename, "%s.mesh", filename);
+      snprintf(tetfilename, sizeof(tetfilename), "%s.mesh", filename);
       ret &= tin.saveMEDIT(tetfilename, erode);
     }
   } else {
-    sprintf(tetfilename, "%s.tet", filename);
+    snprintf(tetfilename, sizeof(tetfilename), "%s.tet", filename);
     if (!rational && !binary)
       ret &= tin.saveTET(tetfilename, erode);
     if (!rational && binary)
@@ -222,7 +222,7 @@ bool saveOutputFile(TetMesh &tin, const char *filename, const char *options) {
   }
 
   if (skin) {
-    sprintf(offfilename, "%s.off", filename);
+    snprintf(offfilename, sizeof(offfilename), "%s.off", filename);
     ret &= tin.saveBoundaryToOFF(offfilename);
   }
 

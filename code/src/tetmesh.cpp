@@ -397,11 +397,19 @@ void TetMesh::VT(vertex v, std::vector<tetrahedra> &vt) const {
 }
 
 void TetMesh::OneRing(TetMesh::edge e, std::vector<vertex> &one_ring,
-                      std::vector<tetrahedra> &incident_tetrahedras) {
-  ETfull(e.first, e.second, incident_tetrahedras);
+                      std::vector<tetrahedra> &incident_tetrahedras,
+                      bool verbose) {
+  ETfull(e.first, e.second, incident_tetrahedras, verbose);
   TetMesh::edge opposite_edge;
   one_ring.clear();
 
+  for (tetrahedra t : incident_tetrahedras) {
+    if (!has_infinite_vertex(t)) {
+      oppositeTetEdgePair(t, e, opposite_edge);
+      marked_vertex[opposite_edge.first] = 0;
+      marked_vertex[opposite_edge.second] = 0;
+    }
+  }
   for (tetrahedra t : incident_tetrahedras) {
     if (!has_infinite_vertex(t)) {
       oppositeTetEdgePair(t, e, opposite_edge);
@@ -485,27 +493,36 @@ void TetMesh::ET(vertex v1, vertex v2, std::vector<tetrahedra> &et) const {
   }
 }
 
-void TetMesh::ETfull(vertex v1, vertex v2, std::vector<tetrahedra> &et) const {
+void TetMesh::ETfull(vertex v1, vertex v2, std::vector<tetrahedra> &et,
+                     bool verbose) const {
   std::vector<tetrahedra> incident_tetrahedras_v1;
-  VTfull(v1, incident_tetrahedras_v1);
+  VTfull(v1, incident_tetrahedras_v1, verbose);
   for (tetrahedra t : incident_tetrahedras_v1) {
     if (tetHasVertex(t, v2))
       et.push_back(t);
   }
 }
 
-void TetMesh::ETcorners(vertex v1, vertex v2,
-                        std::vector<tetrahedra> &et) const {
+void TetMesh::ETcorners(vertex v1, vertex v2, std::vector<tetrahedra> &et,
+                        bool verbose) const {
   uint64_t t;
-  VTfull(v1, et);
-  for (uint64_t s : et)
+  VTfull(v1, et, verbose);
+  if (verbose)
+    std::cout << "Got " << et.size() << " incident tet at v1" << std::endl;
+  for (uint64_t s : et) {
     if (tetHasVertex(s, v2)) {
       t = (s << 2);
+      if (verbose)
+        std::cout << "Init t" << std::endl;
       break;
     }
+  }
 
-  while (tet_node[t] == v1 || tet_node[t] == v2)
+  while (tet_node[t] == v1 || tet_node[t] == v2) {
+    if (verbose)
+      std::cout << "Incrementing t" << std::endl;
     t++;
+  }
 
   et.clear();
 
@@ -522,10 +539,12 @@ void TetMesh::ETcorners(vertex v1, vertex v2,
   } while (t != c0);
 }
 
-void TetMesh::VTfull(vertex v, std::vector<tetrahedra> &vt) const {
+void TetMesh::VTfull(vertex v, std::vector<tetrahedra> &vt,
+                     bool verbose) const {
   static std::vector<uint64_t>
       vt_queue; // Static to avoid reallocation at each call
   uint64_t s, t = inc_tet[v];
+
   vt_queue.push_back(t);
   mark_Tet_31(t);
 
@@ -533,12 +552,16 @@ void TetMesh::VTfull(vertex v, std::vector<tetrahedra> &vt) const {
 
   while (!vt_queue.empty()) {
     t = vt_queue.back();
+    if (verbose)
+      std::cout << "Popped tet " << t << " on " << numTets() << std::endl;
     vt_queue.pop_back();
     vt.push_back(t);
     t <<= 2;
     for (int i = 0; i < 4; i++) {
       if (t + i < num_corner) {
         s = tet_neigh[t + i] >> 2;
+        if (verbose)
+          std::cout << "Treating " << s << std::endl;
         if (!is_marked_Tet_31(s) && tetHasVertex(s, v)) {
           vt_queue.push_back(s);
           mark_Tet_31(s);
@@ -817,8 +840,8 @@ void TetMesh::get_edges_from_tetrahedras(
 }
 
 void TetMesh::boundaryETcorners(uint32_t v1, uint32_t v2,
-                                std::vector<uint64_t> &et) const {
-  ETcorners(v1, v2, et);
+                                std::vector<uint64_t> &et, bool verbose) const {
+  ETcorners(v1, v2, et, verbose);
   for (size_t i = 0; i < et.size();)
     if (mark_tetrahedra[et[i] >> 2] == mark_tetrahedra[tet_neigh[et[i]] >> 2]) {
       std::swap(et[i], et[et.size() - 1]);

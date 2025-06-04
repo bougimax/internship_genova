@@ -1,35 +1,10 @@
 #include "optimize.h"
 #include "delaunay.h"
 #include "numeric_wrapper.h"
+#include <cfloat>
 
 /// HELPERS
 
-double tetEnergy(const pointType *p1, const pointType *p2, const pointType *p3,
-                 const pointType *p4) {
-
-  const vector3d v1(p1), v2(p2), v3(p3), v4(p4);
-  vector3d j1(v1.c[0] + v3.c[0] - v2.c[0] - v4.c[0],
-              v1.c[1] + v3.c[1] - v2.c[1] - v4.c[1],
-              v1.c[2] + v3.c[2] - v2.c[2] - v4.c[2]);
-  vector3d j2(v1.c[0] - v3.c[0] - v2.c[0] + v4.c[0],
-              v1.c[1] - v3.c[1] - v2.c[1] + v4.c[1],
-              v1.c[2] - v3.c[2] - v2.c[2] + v4.c[2]);
-  vector3d j3((-v1.c[0]) + v3.c[0] - v2.c[0] + v4.c[0],
-              (-v1.c[1]) + v3.c[1] - v2.c[1] + v4.c[1],
-              (-v1.c[2]) + v3.c[2] - v2.c[2] + v4.c[2]);
-
-  j1 *= 0.5;
-  j2 *= 0.5;
-  j3 *= 0.5;
-
-  const double num = (j1 * j1) + (j2 * j2) + (j3 * j3);
-  double det = j1.tripleProd(j3, j2);
-  if (det <= 0) {
-    return DBL_MAX;
-  }
-
-  return num / pow(det, (2.0 / 3.0));
-}
 double tetEnergy(std::vector<pointType *> &points) {
 
   pointType *p1 = points[0];
@@ -102,18 +77,46 @@ void TetMeshOptimizer::get_all_tets_energy() {
   tetrahedras_energy.clear();
   tetrahedras_energy.reserve(num_tets);
   for (tetrahedra t = 0; t < num_tets; t++) {
-    tetrahedras_energy.push_back(getTetEnergy(t));
+    tetrahedras_energy.push_back(get_quality_measure(t));
   }
+}
+
+double TetMeshOptimizer::get_quality_measure(const pointType *p1,
+                                             const pointType *p2,
+                                             const pointType *p3,
+                                             const pointType *p4) {
+  return quality_measure_(p1, p2, p3, p4);
+}
+
+double TetMeshOptimizer::get_quality_measure(const tetrahedra t) {
+  if (mesh_->has_infinite_vertex(t))
+    return DBL_MAX;
+  else
+    return quality_measure_(
+        mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 0)],
+        mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 1)],
+        mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 2)],
+        mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 3)]);
+}
+
+double TetMeshOptimizer::get_quality_measure(
+    const std::vector<pointType *> &tet_points) {
+  return quality_measure_(tet_points[0], tet_points[1], tet_points[2],
+                          tet_points[3]);
 }
 
 void TetMeshOptimizer::optimize() {
   std::cout << "-----------------------------------------------" << std::endl;
   std::cout << "Starting optimizing pass\n" << std::endl;
 
-  first_pass();
-  second_pass();
-  third_pass();
-  fourth_pass();
+  mesh_->checkMesh(false);
+  first_pass(optim_field_edge_split);
+  mesh_->checkMesh(false);
+  second_pass(optim_field_collapse);
+  mesh_->checkMesh(false);
+  third_pass(optim_field_edge_swap, optim_field_face_swap);
+  mesh_->checkMesh(false);
+  fourth_pass(optim_field_vertex_move);
 
   std::cout << "\nFinished optimizing pass" << std::endl;
   std::cout << "-----------------------------------------------\n" << std::endl;
@@ -132,7 +135,7 @@ bool is_oriented_good(std::vector<pointType *> &points) {
 }
 
 /// FIRST PASS
-void TetMeshOptimizer::first_pass() {
+void TetMeshOptimizer::first_pass(double Split_edge_info::*field_to_optimize) {
 
   std::cout << "Starting FIRST pass" << std::endl;
 
@@ -144,7 +147,7 @@ void TetMeshOptimizer::first_pass() {
   for (edge e : edges) {
     std::unique_ptr<Split_edge_info> split_info = get_split_edge_info(e);
     if (split_info->is_good) {
-      edges_to_split.push(edge_to_size_t(e), split_info->delta);
+      edges_to_split.push(edge_to_size_t(e), (*split_info).*field_to_optimize);
     }
   }
 
@@ -156,7 +159,9 @@ void TetMeshOptimizer::first_pass() {
   while (!edges_to_split.empty()) {
     auto edge = edges_to_split.pop_value();
     if (edge.priority > 0) {
-      split_edge_and_update(size_t_to_edge(edge.key), edges_to_split);
+      split_edge_and_update(size_t_to_edge(edge.key), edges_to_split,
+                            field_to_optimize);
+      mesh_->checkMesh(false);
       num_splitted_edges++;
     } else
       break;
@@ -181,8 +186,8 @@ double TetMeshOptimizer::get_energy_from_splitting(tetrahedra tetrahedra,
   tetrahedra_points_v2[mesh_->get_index_of_vertex_in_tet(
       edge.second, tetrahedra)] = split_point;
 
-  double energy_tet_1 = tetEnergy(tetrahedra_points_v1);
-  double energy_tet_2 = tetEnergy(tetrahedra_points_v2);
+  double energy_tet_1 = get_quality_measure(tetrahedra_points_v1);
+  double energy_tet_2 = get_quality_measure(tetrahedra_points_v2);
 
   // Prevent inversion
   if (!is_oriented_good(tetrahedra_points_v1) ||
@@ -249,7 +254,8 @@ TetMeshOptimizer::get_split_edge_info(edge e) {
 
 void TetMeshOptimizer::split_edge_and_update(
     edge e,
-    better_priority_queue::updatable_priority_queue<size_t, double> &queue) {
+    better_priority_queue::updatable_priority_queue<size_t, double> &queue,
+    double Split_edge_info::*field_to_optimize) {
 
   pointType *split_point = get_split_point(e);
   mesh_->pushVertex(split_point);
@@ -264,7 +270,8 @@ void TetMeshOptimizer::split_edge_and_update(
     std::unique_ptr<Split_edge_info> split_info =
         get_split_edge_info(edge_to_update);
     if (split_info->is_good)
-      queue.set(edge_to_size_t(edge_to_update), split_info->delta);
+      queue.set(edge_to_size_t(edge_to_update),
+                (*split_info).*field_to_optimize);
     else
       queue.update(edge_to_size_t(edge_to_update), -1);
   }
@@ -349,15 +356,15 @@ void TetMeshOptimizer::split_edge(
         split_vertex;
 
     // Updating energy
-    tetrahedras_energy.push_back(getTetEnergy(
+    tetrahedras_energy.push_back(get_quality_measure(
         mesh_->get_tetrahedra_index_from_corner(current_corner - 4)));
-    tetrahedras_energy[tet] = getTetEnergy(tet);
+    tetrahedras_energy[tet] = get_quality_measure(tet);
   }
 }
 
 /// SECOND PASS
 
-void TetMeshOptimizer::second_pass() {
+void TetMeshOptimizer::second_pass(double Collapse_info::*field_to_optimize) {
 
   std::cout << "\nStarting SECOND pass" << std::endl;
 
@@ -371,7 +378,7 @@ void TetMeshOptimizer::second_pass() {
     std::unique_ptr<Collapse_info> collapse_info = get_collapse_info(e);
     if (collapse_info->is_good) {
       edges_to_collapse.push(edge_to_size_t(collapse_info->edge),
-                             collapse_info->delta);
+                             (*collapse_info).*field_to_optimize);
     }
   }
 
@@ -383,8 +390,10 @@ void TetMeshOptimizer::second_pass() {
   while (!edges_to_collapse.empty()) {
     auto edge = edges_to_collapse.pop_value();
     if (edge.priority > 0) {
-      collapse_on_v1_and_update(size_t_to_edge(edge.key), edges_to_collapse);
+      collapse_on_v1_and_update(size_t_to_edge(edge.key), edges_to_collapse,
+                                field_to_optimize);
       num_edge_collapsed++;
+      mesh_->checkMesh(false);
     } else
       break;
   }
@@ -399,7 +408,8 @@ void TetMeshOptimizer::second_pass() {
 
 void TetMeshOptimizer::collapse_on_v1_and_update(
     edge edge_to_collapse,
-    better_priority_queue::updatable_priority_queue<size_t, double> &queue) {
+    better_priority_queue::updatable_priority_queue<size_t, double> &queue,
+    double Collapse_info::*field_to_optimize) {
   std::vector<tetrahedra> impacted_tetrahedras;
   std::vector<edge> removed_edges;
   collapse_on_v1(edge_to_collapse, impacted_tetrahedras, removed_edges);
@@ -419,7 +429,8 @@ void TetMeshOptimizer::collapse_on_v1_and_update(
       queue.update(edge_to_size_t(std::make_pair((collapse_info->edge).second,
                                                  (collapse_info->edge).first)),
                    -1);
-      queue.set(edge_to_size_t(collapse_info->edge), collapse_info->delta);
+      queue.set(edge_to_size_t(collapse_info->edge),
+                (*collapse_info).*field_to_optimize);
     } else {
       queue.update(edge_to_size_t(e), -1);
       queue.update(edge_to_size_t(std::make_pair(e.second, e.first)), -1);
@@ -487,7 +498,7 @@ double TetMeshOptimizer::get_energy_from_collapsing(
         return DBL_MAX;
 
       post_transformation_energy =
-          std::max(post_transformation_energy, tetEnergy(t2_points));
+          std::max(post_transformation_energy, get_quality_measure(t2_points));
     }
   }
 
@@ -611,7 +622,7 @@ bool TetMeshOptimizer::collapse_on_v1(
     if (potential_corner_to_change != UINT64_MAX) {
       mesh_->tet_node[potential_corner_to_change] = v1;
       // Update energy for t2
-      tetrahedras_energy[t] = getTetEnergy(t);
+      tetrahedras_energy[t] = get_quality_measure(t);
     }
   }
 
@@ -652,7 +663,9 @@ bool TetMeshOptimizer::collapse_on_v1(
 
 /// THIRD PASS
 
-void TetMeshOptimizer::third_pass() {
+void TetMeshOptimizer::third_pass(
+    double Swap_edge_info::*field_to_optimize_edge,
+    double Swap_face_info::*field_to_optimize_face) {
 
   // To iterate over all faces once we can represent uniquely a face with the
   // two opposite corner they induce this way we iterate over all corners then
@@ -664,20 +677,21 @@ void TetMeshOptimizer::third_pass() {
 
   std::cout << "\nStarting THIRD pass" << std::endl;
 
-  third_pass_edge();
+  third_pass_edge(field_to_optimize_edge);
 
-  third_pass_face();
+  third_pass_face(field_to_optimize_face);
 
   std::cout << "Finished THIRD pass" << std::endl;
 }
 
-void TetMeshOptimizer::third_pass_face() {
+void TetMeshOptimizer::third_pass_face(
+    double Swap_face_info::*field_to_optimize) {
   better_priority_queue::updatable_priority_queue<corner, double> faces_to_swap;
 
   for (corner face = 0; face < mesh_->tet_node.size(); face++) {
     std::unique_ptr<Swap_face_info> swap_info = get_swap_face_info(face);
     if (swap_info->is_good)
-      faces_to_swap.push(face, swap_info->delta);
+      faces_to_swap.push(face, (*swap_info).*field_to_optimize);
   }
 
   std::cout << "Determined " << faces_to_swap.size() << " faces to swap"
@@ -688,8 +702,9 @@ void TetMeshOptimizer::third_pass_face() {
   while (!faces_to_swap.empty()) {
     auto act_info = faces_to_swap.pop_value();
     if (act_info.priority > 0) {
-      swap_face_and_update(act_info.key, faces_to_swap);
+      swap_face_and_update(act_info.key, faces_to_swap, field_to_optimize);
       num_face_swapped++;
+      mesh_->checkMesh(false);
     } else
       break;
   }
@@ -698,7 +713,8 @@ void TetMeshOptimizer::third_pass_face() {
             << std::endl;
 }
 
-void TetMeshOptimizer::third_pass_edge() {
+void TetMeshOptimizer::third_pass_edge(
+    double Swap_edge_info::*field_to_optimize) {
   std::vector<edge> edges;
   mesh_->getMeshEdges(edges);
   better_priority_queue::updatable_priority_queue<size_t,
@@ -708,9 +724,9 @@ void TetMeshOptimizer::third_pass_edge() {
   for (edge e : edges) {
     std::unique_ptr<Swap_edge_info> swap_info = get_swap_edge_info(e);
     if (swap_info->is_good)
-      edges_to_swap.push(
-          edge_to_size_t(e),
-          std::make_pair(swap_info->delta, swap_info->collapse_vertex));
+      edges_to_swap.push(edge_to_size_t(e),
+                         std::make_pair((*swap_info).*field_to_optimize,
+                                        swap_info->collapse_vertex));
   }
 
   std::cout << "Determined " << edges_to_swap.size() << " edges to swap"
@@ -721,8 +737,11 @@ void TetMeshOptimizer::third_pass_edge() {
   while (!edges_to_swap.empty()) {
     auto act_info = edges_to_swap.pop_value();
     if (act_info.priority.first > 0) {
+
+      bool verbose = false;
       swap_edge_and_update(size_t_to_edge(act_info.key),
-                           act_info.priority.second, edges_to_swap);
+                           act_info.priority.second, edges_to_swap,
+                           field_to_optimize, verbose);
       num_edges_swapped++;
     } else
       break;
@@ -733,32 +752,40 @@ void TetMeshOptimizer::third_pass_edge() {
 
 void TetMeshOptimizer::swap_face_and_update(
     corner face_to_swap,
-    better_priority_queue::updatable_priority_queue<corner, double> &queue) {
+    better_priority_queue::updatable_priority_queue<corner, double> &queue,
+    double Swap_face_info::*field_to_optimize) {
   std::vector<corner> impacted_faces;
   swap_face(face_to_swap, impacted_faces);
 
   for (corner face : impacted_faces) {
     std::unique_ptr<Swap_face_info> swap_info = get_swap_face_info(face);
     if (swap_info->is_good) {
-      queue.set(face, swap_info->delta);
+      queue.set(face, (*swap_info).*field_to_optimize);
       queue.update(mesh_->tet_neigh[face], -1);
     } else {
       queue.update(face, -1);
+      queue.update(mesh_->tet_neigh[face], -1);
     }
   }
 }
 void TetMeshOptimizer::swap_edge_and_update(
     edge edge_to_swap, vertex collapse_vertex,
     better_priority_queue::updatable_priority_queue<
-        size_t, std::pair<double, vertex>> &queue) {
+        size_t, std::pair<double, vertex>> &queue,
+    double Swap_edge_info::*field_to_optimize, bool verbose) {
   std::vector<edge> impacted_edges;
   swap_edge(edge_to_swap, collapse_vertex, impacted_edges);
 
   for (edge e : impacted_edges) {
-    std::unique_ptr<Swap_edge_info> swap_info = get_swap_edge_info(e);
+    if (verbose)
+      std::cout << "Try to get swap edge info" << std::endl;
+    std::unique_ptr<Swap_edge_info> swap_info = get_swap_edge_info(e, verbose);
+    if (verbose)
+      std::cout << "Got swap edge info" << std::endl;
     if (swap_info->is_good) {
       queue.set(edge_to_size_t(e),
-                std::make_pair(swap_info->delta, swap_info->collapse_vertex));
+                std::make_pair((*swap_info).*field_to_optimize,
+                               swap_info->collapse_vertex));
       queue.update(edge_to_size_t(std::make_pair(e.second, e.first)),
                    std::make_pair(-1, 0));
     } else {
@@ -868,22 +895,23 @@ double TetMeshOptimizer::get_energy_from_swapping_face(corner face) {
 
   const uint32_t oc = mesh_->tet_node[orx];
 
-  return std::max(tetEnergy(mesh_->vertices[c3], mesh_->vertices[oc],
-                            mesh_->vertices[c1], mesh_->vertices[c2]),
-                  std::max(tetEnergy(mesh_->vertices[c3], mesh_->vertices[c0],
-                                     mesh_->vertices[oc], mesh_->vertices[c2]),
-                           tetEnergy(mesh_->vertices[c3], mesh_->vertices[c0],
-                                     mesh_->vertices[c1], mesh_->vertices[oc])));
+  return std::max(
+      get_quality_measure(mesh_->vertices[c3], mesh_->vertices[oc],
+                          mesh_->vertices[c1], mesh_->vertices[c2]),
+      std::max(get_quality_measure(mesh_->vertices[c3], mesh_->vertices[c0],
+                                   mesh_->vertices[oc], mesh_->vertices[c2]),
+               get_quality_measure(mesh_->vertices[c3], mesh_->vertices[c0],
+                                   mesh_->vertices[c1], mesh_->vertices[oc])));
 }
 
 std::unique_ptr<TetMeshOptimizer::Swap_edge_info>
-TetMeshOptimizer::get_swap_edge_info(edge e) {
+TetMeshOptimizer::get_swap_edge_info(edge e, bool verbose) {
 
   std::unique_ptr<Swap_edge_info> swap_info =
       std::make_unique<Swap_edge_info>();
   swap_info->edge = e;
 
-  if (mesh_->isOnBoundary(e.first, e.second)) {
+  if (mesh_->isOnBoundary(e.first, e.second, verbose)) {
     swap_info->is_good = false;
     return swap_info;
   }
@@ -891,7 +919,7 @@ TetMeshOptimizer::get_swap_edge_info(edge e) {
   std::vector<tetrahedra> incident_tetrahedras;
   std::vector<vertex> one_ring;
 
-  mesh_->OneRing(e, one_ring, incident_tetrahedras);
+  mesh_->OneRing(e, one_ring, incident_tetrahedras, verbose);
 
   double energy_of_swapping = DBL_MAX, current_energy_of_swapping,
          pre_transformation_energy = 0;
@@ -911,6 +939,18 @@ TetMeshOptimizer::get_swap_edge_info(edge e) {
       num_tet_seen++;
       pre_transformation_energy =
           std::max(tetrahedras_energy[t], pre_transformation_energy);
+      if (pre_transformation_energy == DBL_MAX) {
+        std::cout << "This tet has inf energy" << std::endl;
+        mesh_->log_tetrahedra(t);
+        std::cout
+            << "Orientation is "
+            << is_oriented_good(
+                   mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 0)],
+                   mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 1)],
+                   mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 2)],
+                   mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 3)])
+            << std::endl;
+      }
       mesh_->oppositeTetEdgePair(t, e, opposite_edge);
       if (opposite_edge.first != collapse_point &&
           opposite_edge.second != collapse_point) {
@@ -924,9 +964,10 @@ TetMeshOptimizer::get_swap_edge_info(edge e) {
           current_energy_of_swapping = DBL_MAX;
           break;
         } else {
-          current_energy_of_swapping = std::max(
-              current_energy_of_swapping,
-              std::max(tetEnergy(t_v1_points), tetEnergy(t_v2_points)));
+          current_energy_of_swapping =
+              std::max(current_energy_of_swapping,
+                       std::max(get_quality_measure(t_v1_points),
+                                get_quality_measure(t_v2_points)));
         }
       }
     }
@@ -989,9 +1030,12 @@ bool TetMeshOptimizer::swap_face(uint64_t face,
 
   if (prevent_inversion) {
     // Verify that the swap does not invert any tet
-    if (!is_oriented_good(mesh_->vertices[c3], mesh_->vertices[c3], mesh_->vertices[c3], mesh_->vertices[c3])||
-        !is_oriented_good(mesh_->vertices[c3], mesh_->vertices[c3], mesh_->vertices[c3], mesh_->vertices[c3]) ||
-        !is_oriented_good(mesh_->vertices[c3], mesh_->vertices[c3], mesh_->vertices[c3], mesh_->vertices[c3]) )
+    if (!is_oriented_good(mesh_->vertices[c3], mesh_->vertices[c3],
+                          mesh_->vertices[c3], mesh_->vertices[c3]) ||
+        !is_oriented_good(mesh_->vertices[c3], mesh_->vertices[c3],
+                          mesh_->vertices[c3], mesh_->vertices[c3]) ||
+        !is_oriented_good(mesh_->vertices[c3], mesh_->vertices[c3],
+                          mesh_->vertices[c3], mesh_->vertices[c3]))
       return false;
   }
 
@@ -1006,21 +1050,21 @@ bool TetMeshOptimizer::swap_face(uint64_t face,
   *tn++ = c1;
   *tn++ = c2;
   tetrahedras_energy[mesh_->get_tetrahedra_index_from_corner(tet_basis)] =
-      getTetEnergy(mesh_->get_tetrahedra_index_from_corner(tet_basis));
+      get_quality_measure(mesh_->get_tetrahedra_index_from_corner(tet_basis));
   tn = mesh_->getTetNodes(opp);
   *tn++ = c3;
   *tn++ = c0;
   *tn++ = oc;
   *tn++ = c2;
   tetrahedras_energy[mesh_->get_tetrahedra_index_from_corner(opp)] =
-      getTetEnergy(mesh_->get_tetrahedra_index_from_corner(opp));
+      get_quality_measure(mesh_->get_tetrahedra_index_from_corner(opp));
   tn = mesh_->getTetNodes(b2);
   *tn++ = c3;
   *tn++ = c0;
   *tn++ = c1;
   *tn++ = oc;
   tetrahedras_energy.push_back(
-      getTetEnergy(mesh_->get_tetrahedra_index_from_corner(b2)));
+      get_quality_measure(mesh_->get_tetrahedra_index_from_corner(b2)));
 
   uint64_t *tg = mesh_->getTetNeighs(tet_basis);
   *tg++ = g10;
@@ -1045,18 +1089,21 @@ bool TetMeshOptimizer::swap_face(uint64_t face,
   mesh_->tet_neigh[g11] = opp;
   mesh_->tet_neigh[g12] = b2;
 
-  impacted_faces.push_back(g00);
-  impacted_faces.push_back(g01);
-  impacted_faces.push_back(g02);
-  impacted_faces.push_back(g10);
-  impacted_faces.push_back(g11);
-  impacted_faces.push_back(g12);
-  impacted_faces.push_back(tet_basis + 1);
-  impacted_faces.push_back(opp + 2);
-  impacted_faces.push_back(b2 + 3);
-  impacted_faces.push_back(tet_basis);
-  impacted_faces.push_back(opp);
-  impacted_faces.push_back(b2);
+  for (int i = 0; i < 4; i++) {
+    corner c = tet_basis + i;
+    impacted_faces.push_back(c);
+    impacted_faces.push_back(mesh_->tet_neigh[c]);
+  }
+  for (int i = 0; i < 4; i++) {
+    corner c = opp + i;
+    impacted_faces.push_back(c);
+    impacted_faces.push_back(mesh_->tet_neigh[c]);
+  }
+  for (int i = 0; i < 4; i++) {
+    corner c = b2 + i;
+    impacted_faces.push_back(c);
+    impacted_faces.push_back(mesh_->tet_neigh[c]);
+  }
 
   mesh_->inc_tet[c0] = opp >> 2;
   mesh_->inc_tet[c1] = tet_basis >> 2;
@@ -1066,7 +1113,7 @@ bool TetMeshOptimizer::swap_face(uint64_t face,
 
 /// FOURTH PASS
 
-void TetMeshOptimizer::fourth_pass() {
+void TetMeshOptimizer::fourth_pass(double Move_info::*field_to_optimize) {
   std::cout << "\nStarting FOURTH pass" << std::endl;
 
   uint32_t n_vertices = mesh_->numVertices();
@@ -1077,7 +1124,7 @@ void TetMeshOptimizer::fourth_pass() {
   for (vertex v = 0; v < n_vertices; v++) {
     std::unique_ptr<Move_info> move_info = get_move_info(v);
     if (move_info->is_good)
-      points_to_move.push(v, move_info->delta);
+      points_to_move.push(v, (*move_info).*field_to_optimize);
   }
 
   std::cout << "Determined " << points_to_move.size() << " points to move"
@@ -1088,8 +1135,9 @@ void TetMeshOptimizer::fourth_pass() {
   while (!points_to_move.empty()) {
     auto act_info = points_to_move.pop_value();
     if (act_info.priority > 0) {
-      move_and_update(act_info.key, points_to_move);
+      move_and_update(act_info.key, points_to_move, field_to_optimize);
       num_vertex_moved++;
+      mesh_->checkMesh(false);
     } else
       break;
   }
@@ -1101,7 +1149,8 @@ void TetMeshOptimizer::fourth_pass() {
 
 void TetMeshOptimizer::move_and_update(
     vertex v,
-    better_priority_queue::updatable_priority_queue<vertex, double> &queue) {
+    better_priority_queue::updatable_priority_queue<vertex, double> &queue,
+    double Move_info::*field_to_optimize) {
   std::vector<vertex> impacted_vertices;
   std::vector<tetrahedra> incident_tetrahedras;
 
@@ -1113,7 +1162,7 @@ void TetMeshOptimizer::move_and_update(
   for (vertex vertex_to_update : impacted_vertices) {
     std::unique_ptr<Move_info> move_info = get_move_info(vertex_to_update);
     if (move_info->is_good)
-      queue.set(vertex_to_update, move_info->delta);
+      queue.set(vertex_to_update, (*move_info).*field_to_optimize);
     else
       queue.update(vertex_to_update, -1);
   }
@@ -1202,7 +1251,7 @@ TetMeshOptimizer::get_move_info(vertex v) {
       return move_info;
     }
     post_transformation_energy =
-        std::max(post_transformation_energy, tetEnergy(tet_points));
+        std::max(post_transformation_energy, get_quality_measure(tet_points));
   }
 
   move_info->is_good = pre_transformation_energy > post_transformation_energy;
@@ -1222,7 +1271,7 @@ void TetMeshOptimizer::move_vertex(vertex v, pointType *coord_to_move) {
   mesh_->vertices[v] = coord_to_move;
 
   for (tetrahedra t : incident_tetrahedras)
-    tetrahedras_energy[t] = getTetEnergy(t);
+    tetrahedras_energy[t] = get_quality_measure(t);
 }
 
 /// FIFTH PASS
@@ -1360,20 +1409,11 @@ void TetMeshOptimizer::get_edges_from_tetrahedras(
                   all_edges.end());
 }
 
-double TetMeshOptimizer::getTetEnergy(uint64_t t) const {
-  const uint32_t *n1 = mesh_->tet_node.data() + (t << 2);
-  if (n1[0] == INFINITE_VERTEX || n1[1] == INFINITE_VERTEX ||
-      n1[2] == INFINITE_VERTEX || n1[3] == INFINITE_VERTEX)
-    return DBL_MAX;
-  return tetEnergy(mesh_->vertices[n1[0]], mesh_->vertices[n1[1]],
-                   mesh_->vertices[n1[2]], mesh_->vertices[n1[3]]);
-}
-
 double TetMeshOptimizer::getTotalEnergy() {
   const uint32_t num_tets = mesh_->numTets();
   double total_energy = 0., current_tet_energy;
   for (uint32_t t = 0; t < num_tets; t++) {
-    current_tet_energy = getTetEnergy(t);
+    current_tet_energy = get_quality_measure(t);
     if (current_tet_energy != DBL_MAX)
       total_energy += current_tet_energy;
   }
@@ -1397,7 +1437,7 @@ double TetMeshOptimizer::getMeanEnergy() {
   uint32_t num_real_tets = 0;
   for (uint32_t t = 0; t < num_tets; t++) {
     if (mesh_->mark_tetrahedra[t] == DT_IN) {
-      current_tet_energy = getTetEnergy(t);
+      current_tet_energy = get_quality_measure(t);
       if (current_tet_energy != DBL_MAX) {
         num_real_tets++;
         mean_energy += current_tet_energy;
@@ -1414,7 +1454,8 @@ void TetMeshOptimizer::remove_tetrahedra(tetrahedra t) {
     tetrahedras_energy[t] = tetrahedras_energy[last_tetrahedra];
     for (int i = 0; i < 4; i++) {
       mesh_->tet_node[mesh_->get_i_th_corner_of_tetrahedra(t, i)] =
-          mesh_->tet_node[mesh_->get_i_th_corner_of_tetrahedra(last_tetrahedra, i)];
+          mesh_->tet_node[mesh_->get_i_th_corner_of_tetrahedra(last_tetrahedra,
+                                                               i)];
       mesh_->setMutualNeighbors(
           mesh_->tet_neigh[mesh_->get_i_th_corner_of_tetrahedra(last_tetrahedra,
                                                                 i)],
@@ -1477,10 +1518,11 @@ void TetMeshOptimizer::register_tetrahedrisation(string mesh_name) {
     if (i + 3 < mesh_->tet_node.size() &&
         !mesh_->has_infinite_vertex(
             mesh_->get_tetrahedra_index_from_corner(i))) {
-      current_tet_energy = tetEnergy(mesh_->vertices[mesh_->tet_node[i]],
-                                     mesh_->vertices[mesh_->tet_node[i + 1]],
-                                     mesh_->vertices[mesh_->tet_node[i + 2]],
-                                     mesh_->vertices[mesh_->tet_node[i + 3]]);
+      current_tet_energy =
+          get_quality_measure(mesh_->vertices[mesh_->tet_node[i]],
+                              mesh_->vertices[mesh_->tet_node[i + 1]],
+                              mesh_->vertices[mesh_->tet_node[i + 2]],
+                              mesh_->vertices[mesh_->tet_node[i + 3]]);
       if (current_tet_energy == DBL_MAX) {
         inf_energy_tet_indices.push_back(
             {mesh_->tet_node[i], mesh_->tet_node[i + 1], mesh_->tet_node[i + 2],

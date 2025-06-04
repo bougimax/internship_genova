@@ -277,20 +277,24 @@ public:
   void VT(vertex v, std::vector<tetrahedra> &vt) const;
 
   // Same as VT, but this one includes ghost tets as well
-  void VTfull(vertex v, std::vector<tetrahedra> &vt) const;
+  void VTfull(vertex v, std::vector<tetrahedra> &vt,
+              bool verbose = false) const;
 
   // Adjacent vertices
   void VV(vertex v, std::vector<vertex> &vv);
 
   // Incident tetrahedra at an edge
   void ET(vertex v1, vertex v2, std::vector<tetrahedra> &et) const;
-  void ETfull(vertex v1, vertex v2, std::vector<tetrahedra> &et) const;
+  void ETfull(vertex v1, vertex v2, std::vector<tetrahedra> &et,
+              bool verbose = false) const;
 
   // Incident tetrahedra at an edge represented as ordered sequence of corners
-  void ETcorners(vertex v1, vertex v2, std::vector<corner> &et) const;
+  void ETcorners(vertex v1, vertex v2, std::vector<corner> &et,
+                 bool verbose = false) const;
 
   void OneRing(TetMesh::edge e, std::vector<vertex> &one_ring,
-               std::vector<tetrahedra> &incident_tetrahedras);
+               std::vector<tetrahedra> &incident_tetrahedras,
+               bool verbose = false);
 
   // TRUE if v1 and v2 are connected by an edge
   bool hasEdge(vertex v1, vertex v2) const;
@@ -300,8 +304,8 @@ public:
   void swapTets(const tetrahedra t1, const tetrahedra t2);
 
   // Fill 'bet' with boundary faces incident at v1-v2
-  void boundaryETcorners(uint32_t v1, uint32_t v2,
-                         std::vector<uint64_t> &bet) const;
+  void boundaryETcorners(uint32_t v1, uint32_t v2, std::vector<uint64_t> &bet,
+                         bool verbose = false) const;
 
   bool boundaryEdgePriority(TetMesh::edge e, TetMesh::edge f) {
     if (isOnBoundary(e.first, e.second)) {
@@ -321,9 +325,9 @@ public:
     }
   }
 
-  bool isOnBoundary(uint32_t v1, uint32_t v2) const {
+  bool isOnBoundary(uint32_t v1, uint32_t v2, bool verbose = false) const {
     std::vector<uint64_t> bet;
-    boundaryETcorners(v1, v2, bet);
+    boundaryETcorners(v1, v2, bet, verbose);
     return !bet.empty();
   }
 

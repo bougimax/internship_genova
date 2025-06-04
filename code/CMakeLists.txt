@@ -30,6 +30,7 @@ add_executable(${PROJECT_NAME}
     src/main.cpp
     src/optimize.cpp
     src/tetmesh.cpp
+    src/quality_measure.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -53,22 +54,33 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 		target_compile_options(${PROJECT_NAME} PUBLIC "/D USE_MAROTS_METHOD")
 	endif()
 else()
-# set standard optimization level
-	target_compile_options(${PROJECT_NAME} PUBLIC -O2)
-# grant IEEE 754 compliance
-	target_compile_options(${PROJECT_NAME} PUBLIC -frounding-math)
-	# set target architecture
-	if(ENABLE_AVX2)
-		target_compile_options(${PROJECT_NAME} PUBLIC "-mavx2")
-                target_compile_options(${PROJECT_NAME} PUBLIC "-mfma")
-	elseif(ENABLE_SSE2)
-		target_compile_options(${PROJECT_NAME} PUBLIC "-msse2")
-	endif()
-# reserve enough stack size	
-	target_compile_options(${PROJECT_NAME} PUBLIC -Wl,-z,stacksize=8421376)
-	if(NOT LGPL)
-		target_compile_options(${PROJECT_NAME} PUBLIC "-DUSE_MAROTS_METHOD")
-	endif()
+    # set standard optimization level
+    target_compile_options(${PROJECT_NAME} PUBLIC -O2)
+
+    # grant IEEE 754 compliance
+    target_compile_options(${PROJECT_NAME} PUBLIC -frounding-math)
+
+    # set target architecture
+    if(ENABLE_AVX2 AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        target_compile_options(${PROJECT_NAME} PUBLIC -mavx2 -mfma)
+    elseif(ENABLE_SSE2 AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        target_compile_options(${PROJECT_NAME} PUBLIC -msse2)
+    endif()
+
+    # reserve enough stack size (correct place!)
+    if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        target_link_options(${PROJECT_NAME} PUBLIC -Wl,-z)
+    endif()
+    if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        target_link_options(${PROJECT_NAME} PUBLIC stacksize=8421376)
+    endif()
+
+    # target_link_options(${PROJECT_NAME} PUBLIC -Wl,-z,stacksize=8421376)
+
+    # define macro
+    if(NOT LGPL)
+        target_compile_options(${PROJECT_NAME} PUBLIC -DUSE_MAROTS_METHOD)
+    endif()
 endif()
 
 # Public include directory

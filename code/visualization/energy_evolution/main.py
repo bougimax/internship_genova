@@ -41,8 +41,8 @@ def plot_energy_evolution(folder_paths: list[str], output_folder: str):
     plt.show()
 
 
-FOLDER_PATHS = ["sphere_delta", "sphere_pre_energy"]
+FOLDER_PATHS = ["2025-06-03_energy_big_float", "2025-06-03_energy_double"]
 
-OUTPUT_FOLDER = "output/comparison_sphere"
+OUTPUT_FOLDER = "output/comparison_double_big_float"
 
 plot_energy_evolution(FOLDER_PATHS, OUTPUT_FOLDER)
