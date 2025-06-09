@@ -1,6 +1,7 @@
 #include "optimize.h"
 #include "delaunay.h"
 #include "numeric_wrapper.h"
+#include "random_map.h"
 #include <cfloat>
 
 /// HELPERS
@@ -110,13 +111,15 @@ void TetMeshOptimizer::optimize() {
   std::cout << "Starting optimizing pass\n" << std::endl;
 
   mesh_->checkMesh(false);
-  first_pass(optim_field_edge_split);
+  first_pass_random(optim_field_edge_split);
   mesh_->checkMesh(false);
-  second_pass(optim_field_collapse);
+  second_pass_random(optim_field_collapse);
   mesh_->checkMesh(false);
   third_pass(optim_field_edge_swap, optim_field_face_swap);
   mesh_->checkMesh(false);
   fourth_pass(optim_field_vertex_move);
+  mesh_->checkMesh(false);
+  fifth_pass();
 
   std::cout << "\nFinished optimizing pass" << std::endl;
   std::cout << "-----------------------------------------------\n" << std::endl;
@@ -135,6 +138,40 @@ bool is_oriented_good(std::vector<pointType *> &points) {
 }
 
 /// FIRST PASS
+void TetMeshOptimizer::first_pass_random(
+    double Split_edge_info::*field_to_optimize) {
+
+  std::cout << "Starting FIRST pass" << std::endl;
+
+  std::vector<edge> edges;
+  mesh_->getMeshEdges(edges);
+  RandomMap<size_t, double> edges_to_split;
+
+  for (edge e : edges) {
+    std::unique_ptr<Split_edge_info> split_info = get_split_edge_info(e);
+    if (split_info->is_good) {
+      edges_to_split.insert(edge_to_size_t(e),
+                            (*split_info).*field_to_optimize);
+    }
+  }
+
+  std::cout << "Determined " << edges_to_split.size() << " edges to split"
+            << std::endl;
+
+  int num_splitted_edges = 0;
+
+  while (!edges_to_split.empty()) {
+    auto [edge, _] = edges_to_split.random_pop();
+    split_edge_and_update_random(size_t_to_edge(edge), edges_to_split,
+                                 field_to_optimize);
+    num_splitted_edges++;
+  }
+
+  std::cout << "Actually splitted " << num_splitted_edges << " edges"
+            << std::endl;
+
+  std::cout << "Finished FIRST pass" << std::endl;
+}
 void TetMeshOptimizer::first_pass(double Split_edge_info::*field_to_optimize) {
 
   std::cout << "Starting FIRST pass" << std::endl;
@@ -251,6 +288,31 @@ TetMeshOptimizer::get_split_edge_info(edge e) {
   }
   return split_info;
 }
+void TetMeshOptimizer::split_edge_and_update_random(
+    edge e, RandomMap<size_t, double> &queue,
+    double Split_edge_info::*field_to_optimize) {
+
+  pointType *split_point = get_split_point(e);
+  mesh_->pushVertex(split_point);
+
+  std::vector<tetrahedra> impacted_tetrahedras;
+  split_edge(e, mesh_->vertices.size() - 1, impacted_tetrahedras);
+
+  std::vector<edge> edges_to_update;
+  get_edges_from_tetrahedras(edges_to_update, impacted_tetrahedras);
+
+  for (edge edge_to_update : edges_to_update) {
+    std::unique_ptr<Split_edge_info> split_info =
+        get_split_edge_info(edge_to_update);
+    if (split_info->is_good)
+      queue.insert(edge_to_size_t(edge_to_update),
+                   (*split_info).*field_to_optimize);
+    else {
+      if (queue.contains(edge_to_size_t(edge_to_update)))
+        queue.erase(edge_to_size_t(edge_to_update));
+    }
+  }
+}
 
 void TetMeshOptimizer::split_edge_and_update(
     edge e,
@@ -364,6 +426,43 @@ void TetMeshOptimizer::split_edge(
 
 /// SECOND PASS
 
+void TetMeshOptimizer::second_pass_random(
+    double Collapse_info::*field_to_optimize) {
+
+  std::cout << "\nStarting SECOND pass" << std::endl;
+
+  std::vector<edge> edges;
+  mesh_->getMeshEdges(edges);
+  std::set<vertex> deleted_vertices;
+  RandomMap<size_t, double> edges_to_collapse;
+
+  for (edge e : edges) {
+    std::unique_ptr<Collapse_info> collapse_info = get_collapse_info(e);
+    if (collapse_info->is_good) {
+      edges_to_collapse.insert(edge_to_size_t(collapse_info->edge),
+                               (*collapse_info).*field_to_optimize);
+    }
+  }
+
+  size_t num_edge_collapsed = 0;
+
+  std::cout << "Determined " << edges_to_collapse.size() << " edges to collapse"
+            << std::endl;
+
+  while (!edges_to_collapse.empty()) {
+    auto [edge, _] = edges_to_collapse.random_pop();
+    collapse_on_v1_and_update_random(size_t_to_edge(edge), edges_to_collapse,
+                                     field_to_optimize);
+    num_edge_collapsed++;
+  }
+
+  std::cout << "Actually collapsed " << num_edge_collapsed << " edges"
+            << std::endl;
+
+  std::cout << "Finished SECOND pass" << std::endl;
+
+  temp_remap_vertex.clear();
+}
 void TetMeshOptimizer::second_pass(double Collapse_info::*field_to_optimize) {
 
   std::cout << "\nStarting SECOND pass" << std::endl;
@@ -406,6 +505,35 @@ void TetMeshOptimizer::second_pass(double Collapse_info::*field_to_optimize) {
   temp_remap_vertex.clear();
 }
 
+void TetMeshOptimizer::collapse_on_v1_and_update_random(
+    edge edge_to_collapse, RandomMap<size_t, double> &queue,
+    double Collapse_info::*field_to_optimize) {
+  std::vector<tetrahedra> impacted_tetrahedras;
+  std::vector<edge> removed_edges;
+  collapse_on_v1(edge_to_collapse, impacted_tetrahedras, removed_edges);
+
+  // Remove edges that have been suppressed
+  for (edge e : removed_edges) {
+    queue.erase(edge_to_size_t(e));
+  }
+
+  std::vector<edge> edges_to_update;
+  get_edges_from_tetrahedras(edges_to_update, impacted_tetrahedras);
+
+  // Updates edges
+  for (edge e : edges_to_update) {
+    std::unique_ptr<Collapse_info> collapse_info = get_collapse_info(e);
+    if (collapse_info->is_good) {
+      queue.erase(edge_to_size_t(std::make_pair((collapse_info->edge).second,
+                                                (collapse_info->edge).first)));
+      queue.insert(edge_to_size_t(collapse_info->edge),
+                   (*collapse_info).*field_to_optimize);
+    } else {
+      queue.erase(edge_to_size_t(e));
+      queue.erase(edge_to_size_t(std::make_pair(e.second, e.first)));
+    }
+  }
+}
 void TetMeshOptimizer::collapse_on_v1_and_update(
     edge edge_to_collapse,
     better_priority_queue::updatable_priority_queue<size_t, double> &queue,
@@ -677,13 +805,37 @@ void TetMeshOptimizer::third_pass(
 
   std::cout << "\nStarting THIRD pass" << std::endl;
 
-  third_pass_edge(field_to_optimize_edge);
+  third_pass_edge_random(field_to_optimize_edge);
 
-  third_pass_face(field_to_optimize_face);
+  third_pass_face_random(field_to_optimize_face);
 
   std::cout << "Finished THIRD pass" << std::endl;
 }
 
+void TetMeshOptimizer::third_pass_face_random(
+    double Swap_face_info::*field_to_optimize) {
+  RandomMap<corner, double> faces_to_swap;
+
+  for (corner face = 0; face < mesh_->tet_node.size(); face++) {
+    std::unique_ptr<Swap_face_info> swap_info = get_swap_face_info(face);
+    if (swap_info->is_good)
+      faces_to_swap.insert(face, (*swap_info).*field_to_optimize);
+  }
+
+  std::cout << "Determined " << faces_to_swap.size() << " faces to swap"
+            << std::endl;
+
+  uint32_t num_face_swapped = 0;
+
+  while (!faces_to_swap.empty()) {
+    auto [face, _] = faces_to_swap.random_pop();
+    swap_face_and_update_random(face, faces_to_swap, field_to_optimize);
+    num_face_swapped++;
+  }
+
+  std::cout << "Actually swapped " << num_face_swapped << " faces\n"
+            << std::endl;
+}
 void TetMeshOptimizer::third_pass_face(
     double Swap_face_info::*field_to_optimize) {
   better_priority_queue::updatable_priority_queue<corner, double> faces_to_swap;
@@ -713,6 +865,34 @@ void TetMeshOptimizer::third_pass_face(
             << std::endl;
 }
 
+void TetMeshOptimizer::third_pass_edge_random(
+    double Swap_edge_info::*field_to_optimize) {
+  std::vector<edge> edges;
+  mesh_->getMeshEdges(edges);
+  RandomMap<size_t, vertex> edges_to_swap;
+
+  for (edge e : edges) {
+    std::unique_ptr<Swap_edge_info> swap_info = get_swap_edge_info(e);
+    if (swap_info->is_good)
+      edges_to_swap.insert(edge_to_size_t(e), swap_info->collapse_vertex);
+  }
+
+  std::cout << "Determined " << edges_to_swap.size() << " edges to swap"
+            << std::endl;
+
+  int num_edges_swapped = 0;
+
+  while (!edges_to_swap.empty()) {
+    auto [edge, collapse_vertex] = edges_to_swap.random_pop();
+
+    bool verbose = false;
+    swap_edge_and_update_random(size_t_to_edge(edge), collapse_vertex,
+                                edges_to_swap, field_to_optimize, verbose);
+    num_edges_swapped++;
+  }
+  std::cout << "Actually swapped " << num_edges_swapped << " edges"
+            << std::endl;
+}
 void TetMeshOptimizer::third_pass_edge(
     double Swap_edge_info::*field_to_optimize) {
   std::vector<edge> edges;
@@ -765,6 +945,44 @@ void TetMeshOptimizer::swap_face_and_update(
     } else {
       queue.update(face, -1);
       queue.update(mesh_->tet_neigh[face], -1);
+    }
+  }
+}
+void TetMeshOptimizer::swap_face_and_update_random(
+    corner face_to_swap, RandomMap<corner, double> &queue,
+    double Swap_face_info::*field_to_optimize) {
+  std::vector<corner> impacted_faces;
+  swap_face(face_to_swap, impacted_faces);
+
+  for (corner face : impacted_faces) {
+    std::unique_ptr<Swap_face_info> swap_info = get_swap_face_info(face);
+    if (swap_info->is_good) {
+      queue.insert(face, (*swap_info).*field_to_optimize);
+      queue.erase(mesh_->tet_neigh[face]);
+    } else {
+      queue.erase(face);
+      queue.erase(mesh_->tet_neigh[face]);
+    }
+  }
+}
+void TetMeshOptimizer::swap_edge_and_update_random(
+    edge edge_to_swap, vertex collapse_vertex, RandomMap<size_t, vertex> &queue,
+    double Swap_edge_info::*field_to_optimize, bool verbose) {
+  std::vector<edge> impacted_edges;
+  swap_edge(edge_to_swap, collapse_vertex, impacted_edges);
+
+  for (edge e : impacted_edges) {
+    if (verbose)
+      std::cout << "Try to get swap edge info" << std::endl;
+    std::unique_ptr<Swap_edge_info> swap_info = get_swap_edge_info(e, verbose);
+    if (verbose)
+      std::cout << "Got swap edge info" << std::endl;
+    if (swap_info->is_good) {
+      queue.insert(edge_to_size_t(e), swap_info->collapse_vertex);
+      queue.erase(edge_to_size_t(std::make_pair(e.second, e.first)));
+    } else {
+      queue.erase(edge_to_size_t(e));
+      queue.erase(edge_to_size_t(std::make_pair(e.second, e.first)));
     }
   }
 }
@@ -939,18 +1157,6 @@ TetMeshOptimizer::get_swap_edge_info(edge e, bool verbose) {
       num_tet_seen++;
       pre_transformation_energy =
           std::max(tetrahedras_energy[t], pre_transformation_energy);
-      if (pre_transformation_energy == DBL_MAX) {
-        std::cout << "This tet has inf energy" << std::endl;
-        mesh_->log_tetrahedra(t);
-        std::cout
-            << "Orientation is "
-            << is_oriented_good(
-                   mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 0)],
-                   mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 1)],
-                   mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 2)],
-                   mesh_->vertices[mesh_->get_i_th_vertex_of_tetrahedra(t, 3)])
-            << std::endl;
-      }
       mesh_->oppositeTetEdgePair(t, e, opposite_edge);
       if (opposite_edge.first != collapse_point &&
           opposite_edge.second != collapse_point) {
@@ -1113,6 +1319,35 @@ bool TetMeshOptimizer::swap_face(uint64_t face,
 
 /// FOURTH PASS
 
+void TetMeshOptimizer::fourth_pass_random(
+    double Move_info::*field_to_optimize) {
+  std::cout << "\nStarting FOURTH pass" << std::endl;
+
+  uint32_t n_vertices = mesh_->numVertices();
+
+  RandomMap<vertex, double> points_to_move;
+
+  for (vertex v = 0; v < n_vertices; v++) {
+    std::unique_ptr<Move_info> move_info = get_move_info(v);
+    if (move_info->is_good)
+      points_to_move.insert(v, (*move_info).*field_to_optimize);
+  }
+
+  std::cout << "Determined " << points_to_move.size() << " points to move"
+            << std::endl;
+
+  size_t num_vertex_moved = 0;
+
+  while (!points_to_move.empty()) {
+    auto [vertex, _] = points_to_move.random_pop();
+    move_and_update_random(vertex, points_to_move, field_to_optimize);
+    num_vertex_moved++;
+  }
+
+  std::cout << "Actually moved " << num_vertex_moved << " points" << std::endl;
+
+  std::cout << "Finished FOURTH pass" << std::endl;
+}
 void TetMeshOptimizer::fourth_pass(double Move_info::*field_to_optimize) {
   std::cout << "\nStarting FOURTH pass" << std::endl;
 
@@ -1147,6 +1382,25 @@ void TetMeshOptimizer::fourth_pass(double Move_info::*field_to_optimize) {
   std::cout << "Finished FOURTH pass" << std::endl;
 }
 
+void TetMeshOptimizer::move_and_update_random(
+    vertex v, RandomMap<vertex, double> &queue,
+    double Move_info::*field_to_optimize) {
+  std::vector<vertex> impacted_vertices;
+  std::vector<tetrahedra> incident_tetrahedras;
+
+  mesh_->VV(v, impacted_vertices);
+  mesh_->VT(v, incident_tetrahedras);
+
+  move_vertex(v, get_barycenter(v, incident_tetrahedras));
+
+  for (vertex vertex_to_update : impacted_vertices) {
+    std::unique_ptr<Move_info> move_info = get_move_info(vertex_to_update);
+    if (move_info->is_good)
+      queue.insert(vertex_to_update, (*move_info).*field_to_optimize);
+    else
+      queue.erase(vertex_to_update);
+  }
+}
 void TetMeshOptimizer::move_and_update(
     vertex v,
     better_priority_queue::updatable_priority_queue<vertex, double> &queue,
@@ -1279,30 +1533,35 @@ void TetMeshOptimizer::move_vertex(vertex v, pointType *coord_to_move) {
 void TetMeshOptimizer::fifth_pass() {
   std::cout << "\nStarting FIFTH pass" << std::endl;
 
-  std::vector<std::unique_ptr<Split_tetrahedra_info>> tetrahedras_to_split;
+  better_priority_queue::updatable_priority_queue<tetrahedra,
+                                                  std::pair<double, edge>>
+      tetrahedras_to_split;
 
   for (tetrahedra t = 0; t < mesh_->numTets(); t++) {
-    if (tetrahedras_energy[t] > 100) {
-      std::unique_ptr<Split_tetrahedra_info> split_info =
-          get_split_tetrahedra_info(t);
-      if (split_info->is_good) {
-        tetrahedras_to_split.push_back(std::move(split_info));
-      }
+    std::unique_ptr<Split_tetrahedra_info> split_info =
+        get_split_tetrahedra_info(t);
+    if (split_info->is_good) {
+      tetrahedras_to_split.push(
+          t, std::make_pair(split_info->pre_energy, split_info->edge_1));
     }
   }
   std::cout << "Determined " << tetrahedras_to_split.size()
             << " tetrahedras to split" << std::endl;
 
   size_t num_tetrahedra_splitted = 0;
+  std::vector<tetrahedra> impacted_tets;
 
-  for (auto &i : tetrahedras_to_split) {
-    if (try_to_split_tetrahedra(std::move(i))) {
-
-      std::cout << "Already splitted " << ++num_tetrahedra_splitted << " tets"
-                << std::endl;
-    }
+  while (!tetrahedras_to_split.empty()) {
+    auto priority_node = tetrahedras_to_split.pop_value();
+    if (priority_node.priority.first > 0) {
+      split_tetrahedra_and_update(priority_node.key,
+                                  priority_node.priority.second,
+                                  tetrahedras_to_split);
+      num_tetrahedra_splitted++;
+    } else
+      break;
   }
-  std::cout << "Actually splitted " << num_tetrahedra_splitted << " tetrahedras"
+  std::cout << "Actually splitted " << num_tetrahedra_splitted << " tets"
             << std::endl;
   std::cout << "Finished FIFTH pass" << std::endl;
 }
@@ -1317,51 +1576,94 @@ TetMeshOptimizer::get_split_tetrahedra_info(tetrahedra t) {
   }
   edge edge_1, edge_2;
   int best_edge = 0;
-  double pre_transformation_energy = 0., post_transformation_energy = DBL_MAX,
-         current_post_transformation_energy;
+  double current_pre_transformation_energy,
+      pre_transformation_energy = 0., post_transformation_energy = DBL_MAX,
+      current_post_transformation_energy;
+  pointType *split_point_1, *split_point_2;
+  std::vector<tetrahedra> incident_tetrahedras_1, incident_tetrahedras_2;
   for (int i = 1; i < 4; i++) {
-    current_post_transformation_energy = 0.;
     edge_1 = std::make_pair(mesh_->get_i_th_vertex_of_tetrahedra(t, 0),
                             mesh_->get_i_th_vertex_of_tetrahedra(t, i));
     mesh_->oppositeTetEdgePair(t, edge_1, edge_2);
-    std::unique_ptr<Split_edge_info> split_info_1 = get_split_edge_info(edge_1);
-    std::unique_ptr<Split_edge_info> split_info_2 = get_split_edge_info(edge_2);
-    pre_transformation_energy =
-        std::max(split_info_1->pre_energy, split_info_2->pre_energy);
-    for (const auto &[tet, energy] : split_info_1->energy_per_tet) {
-      if (tet != t)
-        current_post_transformation_energy =
-            std::max(current_post_transformation_energy, energy);
+    current_pre_transformation_energy = get_quality_measure(t);
+    incident_tetrahedras_1.clear();
+    incident_tetrahedras_2.clear();
+    mesh_->ETfull(edge_1.first, edge_1.second, incident_tetrahedras_1);
+    mesh_->ETfull(edge_2.first, edge_2.second, incident_tetrahedras_2);
+    for (tetrahedra t1 : incident_tetrahedras_1) {
+      if (!mesh_->has_infinite_vertex(t1)) {
+        current_pre_transformation_energy = std::max(
+            current_pre_transformation_energy, get_quality_measure(t1));
+      }
     }
+    for (tetrahedra t2 : incident_tetrahedras_2) {
+      if (!mesh_->has_infinite_vertex(t2))
+        current_pre_transformation_energy = std::max(
+            current_pre_transformation_energy, get_quality_measure(t2));
+    }
+    split_point_1 = get_split_point(edge_1);
+    split_point_2 = get_split_point(edge_2);
+    current_post_transformation_energy = 0.;
+    for (tetrahedra t1 : incident_tetrahedras_1) {
+      if (t1 != t && !mesh_->has_infinite_vertex(t1)) {
+        std::vector<pointType *> t1_points_1 = mesh_->getTetPoints(t1);
+        t1_points_1[mesh_->get_index_of_vertex_in_tet(edge_1.first, t1)] =
+            split_point_1;
+        std::vector<pointType *> t1_points_2 = mesh_->getTetPoints(t1);
+        t1_points_2[mesh_->get_index_of_vertex_in_tet(edge_1.second, t1)] =
+            split_point_1;
+        current_post_transformation_energy =
+            std::max(current_post_transformation_energy,
+                     std::max(get_quality_measure(t1_points_1),
+                              get_quality_measure(t1_points_2)));
+      }
+    }
+    for (tetrahedra t2 : incident_tetrahedras_2) {
+      if (t2 != t && !mesh_->has_infinite_vertex(t2)) {
+        std::vector<pointType *> t2_points_1 = mesh_->getTetPoints(t2);
+        t2_points_1[mesh_->get_index_of_vertex_in_tet(edge_2.first, t2)] =
+            split_point_2;
+        std::vector<pointType *> t2_points_2 = mesh_->getTetPoints(t2);
+        t2_points_2[mesh_->get_index_of_vertex_in_tet(edge_2.second, t2)] =
+            split_point_2;
+        current_post_transformation_energy =
+            std::max(current_post_transformation_energy,
+                     std::max(get_quality_measure(t2_points_1),
+                              get_quality_measure(t2_points_2)));
+      }
+    }
+    std::vector<pointType *> t_points_1 = mesh_->getTetPoints(t);
+    t_points_1[mesh_->get_index_of_vertex_in_tet(edge_1.first, t)] =
+        split_point_1;
+    t_points_1[mesh_->get_index_of_vertex_in_tet(edge_2.first, t)] =
+        split_point_2;
+    std::vector<pointType *> t_points_2 = mesh_->getTetPoints(t);
+    t_points_2[mesh_->get_index_of_vertex_in_tet(edge_1.second, t)] =
+        split_point_1;
+    t_points_2[mesh_->get_index_of_vertex_in_tet(edge_2.first, t)] =
+        split_point_2;
+    std::vector<pointType *> t_points_3 = mesh_->getTetPoints(t);
+    t_points_3[mesh_->get_index_of_vertex_in_tet(edge_1.first, t)] =
+        split_point_1;
+    t_points_3[mesh_->get_index_of_vertex_in_tet(edge_2.second, t)] =
+        split_point_2;
+    std::vector<pointType *> t_points_4 = mesh_->getTetPoints(t);
+    t_points_4[mesh_->get_index_of_vertex_in_tet(edge_1.second, t)] =
+        split_point_1;
+    t_points_4[mesh_->get_index_of_vertex_in_tet(edge_2.second, t)] =
+        split_point_2;
     current_post_transformation_energy =
         std::max(current_post_transformation_energy,
-                 tetEnergyPositive(mesh_->vertices[(split_info_1->edge).first],
-                                   mesh_->vertices[(split_info_2->edge).first],
-                                   split_info_1->split_point,
-                                   split_info_2->split_point));
-    current_post_transformation_energy =
-        std::max(current_post_transformation_energy,
-                 tetEnergyPositive(mesh_->vertices[(split_info_1->edge).first],
-                                   mesh_->vertices[(split_info_2->edge).second],
-                                   split_info_1->split_point,
-                                   split_info_2->split_point));
-    current_post_transformation_energy =
-        std::max(current_post_transformation_energy,
-                 tetEnergyPositive(mesh_->vertices[(split_info_1->edge).second],
-                                   mesh_->vertices[(split_info_2->edge).first],
-                                   split_info_1->split_point,
-                                   split_info_2->split_point));
-    current_post_transformation_energy =
-        std::max(current_post_transformation_energy,
-                 tetEnergyPositive(mesh_->vertices[(split_info_1->edge).second],
-                                   mesh_->vertices[(split_info_2->edge).second],
-                                   split_info_1->split_point,
-                                   split_info_2->split_point));
-    if (current_post_transformation_energy < post_transformation_energy) {
-      best_edge = i;
+                 std::max(get_quality_measure(t_points_1),
+                          std::max(get_quality_measure(t_points_2),
+                                   std::max(get_quality_measure(t_points_3),
+                                            get_quality_measure(t_points_4)))));
+    if ((current_post_transformation_energy <
+             current_pre_transformation_energy &&
+         current_post_transformation_energy < post_transformation_energy)) {
       post_transformation_energy = current_post_transformation_energy;
-      split_info->split_point_1 = split_info_1->split_point;
-      split_info->split_point_2 = split_info_2->split_point;
+      pre_transformation_energy = current_pre_transformation_energy;
+      best_edge = i;
     }
   }
   split_info->is_good = post_transformation_energy < pre_transformation_energy;
@@ -1371,11 +1673,45 @@ TetMeshOptimizer::get_split_tetrahedra_info(tetrahedra t) {
     split_info->edge_1 =
         std::make_pair(mesh_->get_i_th_vertex_of_tetrahedra(t, 0),
                        mesh_->get_i_th_vertex_of_tetrahedra(t, best_edge));
+    split_info->split_point_1 = get_split_point(split_info->edge_1);
     mesh_->oppositeTetEdgePair(t, split_info->edge_1, split_info->edge_2);
+    split_info->split_point_2 = get_split_point(split_info->edge_2);
     split_info->tetrahedra = t;
   }
 
   return split_info;
+}
+
+void TetMeshOptimizer::split_tetrahedra_and_update(
+    tetrahedra tet_to_split, edge edge_1,
+    better_priority_queue::updatable_priority_queue<
+        tetrahedra, std::pair<double, edge>> &queue) {
+  pointType *split_point_1, *split_point_2;
+  split_point_1 = get_split_point(edge_1);
+  edge edge_2;
+  mesh_->oppositeTetEdgePair(tet_to_split, edge_1, edge_2);
+  split_point_2 = get_split_point(edge_2);
+  std::vector<tetrahedra> impacted_tetrahedras_1, impacted_tetrahedras;
+  mesh_->pushVertex(split_point_1);
+  split_edge(edge_1, mesh_->numVertices() - 1, impacted_tetrahedras_1);
+  mesh_->pushVertex(split_point_2);
+  split_edge(edge_2, mesh_->numVertices() - 1, impacted_tetrahedras);
+  for (tetrahedra t : impacted_tetrahedras_1) {
+    if (!((mesh_->tetHasVertex(t, edge_2.first) &&
+           mesh_->tetHasVertex(t, edge_2.second)) &&
+          mesh_->tetHasVertex(t, mesh_->numVertices() - 2))) {
+      impacted_tetrahedras.push_back(t);
+    }
+  }
+  for (tetrahedra t : impacted_tetrahedras) {
+    std::unique_ptr<Split_tetrahedra_info> split_info =
+        get_split_tetrahedra_info(t);
+    if (split_info->is_good) {
+      queue.set(t, std::make_pair(split_info->delta, split_info->edge_1));
+    } else {
+      queue.update(t, std::make_pair(-1, std::make_pair(0, 0)));
+    }
+  }
 }
 
 bool TetMeshOptimizer::try_to_split_tetrahedra(

@@ -5,6 +5,7 @@
 #include "polyscope/polyscope.h"
 #include "polyscope/volume_mesh.h"
 #include "quality_measure.h"
+#include "random_map.h"
 #include "vector_3d.h"
 #include <functional>
 #include <iterator>
@@ -96,6 +97,15 @@ private:
     pointType *barycenter;
   };
 
+  template <typename T, template <typename...> class Container>
+  class Operation_pass {
+  public:
+    Container<T> elements_to_process;
+
+    virtual void push(T element);
+    virtual void process_elements();
+  };
+
   /// Default fields to optimize
 
   double Split_edge_info::*optim_field_edge_split = &Split_edge_info::delta;
@@ -111,6 +121,7 @@ private:
   // Execute first pass (refining) of optimization process as described in
   // sec 3.2 of tetwild MAX
   void first_pass(double Split_edge_info::*field_to_optimize);
+  void first_pass_random(double Split_edge_info::*field_to_optimize);
 
   // Returns the maximum of the energy of the two tetrahedras that will produce
   // the split of the edge on the tetrahedra t that is adjacent to the edge to
@@ -128,6 +139,10 @@ private:
       better_priority_queue::updatable_priority_queue<size_t, double> &queue,
       double Split_edge_info::*field_to_optimize);
 
+  void split_edge_and_update_random(TetMesh::edge e,
+                                    RandomMap<size_t, double> &queue,
+                                    double Split_edge_info::*field_to_optimize);
+
   // Split the edge edge_to_split with the vertex split_vertex in the middle
   void split_edge(TetMesh::edge edge_to_split, TetMesh::vertex split_vertex,
                   std::vector<TetMesh::tetrahedra> &impacted_tetrahedras);
@@ -138,6 +153,8 @@ private:
   // sec 3.2 of tetwild MAX
   void
   second_pass(double Collapse_info::*field_to_optimize = &Collapse_info::delta);
+  void second_pass_random(
+      double Collapse_info::*field_to_optimize = &Collapse_info::delta);
 
   // Remap and edge for the collapsing pass
   void remap_edge(TetMesh::edge &edge) {
@@ -178,6 +195,10 @@ private:
       TetMesh::edge edge_to_collapse,
       better_priority_queue::updatable_priority_queue<size_t, double> &queue,
       double Collapse_info::*field_to_optimize);
+  void
+  collapse_on_v1_and_update_random(TetMesh::edge edge_to_collapse,
+                                   RandomMap<size_t, double> &queue,
+                                   double Collapse_info::*field_to_optimize);
 
   // Collapse an edge onto its first endpoint
   bool collapse_on_v1(TetMesh::edge e,
@@ -194,11 +215,15 @@ private:
   // Execute the swap of the faces, here the only swap implemented is the 2-3
   // swap
   void third_pass_face(double Swap_face_info::*field_to_optimize);
+  void third_pass_face_random(double Swap_face_info::*field_to_optimize);
   void swap_face_and_update(
       TetMesh::corner face_to_swap,
       better_priority_queue::updatable_priority_queue<TetMesh::corner, double>
           &queue,
       double Swap_face_info::*field_to_optimize);
+  void swap_face_and_update_random(TetMesh::corner face_to_swap,
+                                   RandomMap<TetMesh::corner, double> &queue,
+                                   double Swap_face_info::*field_to_optimize);
 
   // Returns if it's valid and worth to swap a face (the face is identified by
   // one of the two corner which is opposed to it)
@@ -216,12 +241,18 @@ private:
   // Execute the swap of the edges, it works by first splitting an edge then
   // collapse one of the edge created by the split vertex
   void third_pass_edge(double Swap_edge_info::*field_to_optimize);
+  void third_pass_edge_random(double Swap_edge_info::*field_to_optimize);
 
   void swap_edge_and_update(
       TetMesh::edge edge_to_swap, TetMesh::vertex collapse_vertex,
       better_priority_queue::updatable_priority_queue<
           size_t, std::pair<double, TetMesh::vertex>> &queue,
       double Swap_edge_info::*field_to_optimize, bool verbose = false);
+  void swap_edge_and_update_random(TetMesh::edge edge_to_swap,
+                                   TetMesh::vertex collapse_vertex,
+                                   RandomMap<size_t, TetMesh::vertex> &queue,
+                                   double Swap_edge_info::*field_to_optimize,
+                                   bool verbose = false);
 
   void swap_edge(TetMesh::edge edge_to_swap, TetMesh::vertex collapse_vertex,
                  std::vector<TetMesh::edge> &impacted_edges);
@@ -237,11 +268,15 @@ private:
   // Execute fourth pass (smoothing) of optimization process as described in
   // sec 3.2 of tetwild MAX
   void fourth_pass(double Move_info::*field_to_optimize);
+  void fourth_pass_random(double Move_info::*field_to_optimize);
   void move_and_update(
       TetMesh::vertex v,
       better_priority_queue::updatable_priority_queue<TetMesh::vertex, double>
           &queue,
       double Move_info::*field_to_optimize);
+  void move_and_update_random(TetMesh::vertex v,
+                              RandomMap<TetMesh::vertex, double> &queue,
+                              double Move_info::*field_to_optimize);
 
   // Returns a pair where the first is wether it's valid and worth to move the
   // vertex to its center of mass, the second is the center of mass
@@ -259,6 +294,10 @@ private:
   get_split_tetrahedra_info(TetMesh::tetrahedra t);
 
   bool try_to_split_tetrahedra(std::unique_ptr<Split_tetrahedra_info> info);
+  void
+  split_tetrahedra_and_update(tetrahedra tet_to_split, edge edge_1,
+                              better_priority_queue::updatable_priority_queue<
+                                  tetrahedra, std::pair<double, edge>> &queue);
 
   void get_edges_from_tetrahedras(std::vector<TetMesh::edge> &all_edges,
                                   std::vector<TetMesh::tetrahedra> &tets) const;
