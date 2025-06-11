@@ -30,7 +30,8 @@ using namespace std;
 
 TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
   bool log = false, bbox = false, verbose = false, snap = false,
-       logscreen = false, optimize = false;
+       logscreen = false, optimize = false, polyscope = false,
+       energy_evolution = false, until_convergence = false, random = false;
 
   for (int i = 0; i < strlen(options); i++)
     switch (options[i]) {
@@ -51,6 +52,18 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
       break;
     case 'o':
       optimize = true;
+      break;
+    case 'p':
+      polyscope = true;
+      break;
+    case 'e':
+      energy_evolution = true;
+      break;
+    case 'c':
+      until_convergence = true;
+      break;
+    case 'r':
+      random = true;
       break;
     } // Just ignore unknown options
 
@@ -123,36 +136,75 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
 
   if (optimize) {
     ofstream mean_energy, max_energy;
-    mean_energy.open("mean_energy.txt");
-    max_energy.open("max_energy.txt");
+    if (energy_evolution) {
+      mean_energy.open("mean_energy.txt");
+      max_energy.open("max_energy.txt");
+    }
     TetMeshOptimizer opt;
     opt.set_mesh(*(tin->mesh));
+    opt.verbose = verbose;
+    opt.random = random;
     opt.get_all_tets_energy();
-    std::cout << "Before optimization mean energy is " << opt.getMeanEnergy()
-              << std::endl;
-    std::cout << "Before optimization max energy is " << opt.getMaxEnergy()
-              << std::endl;
-    opt.register_tetrahedrisation("Before optim");
-    // mean_energy << tin->getMeanEnergy() << std::endl;
-    // max_energy << tin->getMaxEnergy() << std::endl;
-    for (int i = 0; i < 1; i++) {
-      std::cout << "Starting optimizing pass " << i << std::endl;
-      // tin->register_tetrahedrisation("Before optim pass " +
-      // std::to_string(i));
-      opt.optimize();
+    if (verbose) {
+      std::cout << "Before optimization mean energy is " << opt.getMeanEnergy()
+                << std::endl;
+      std::cout << "Before optimization max energy is " << opt.getMaxEnergy()
+                << std::endl;
+    }
+    if (polyscope)
+      opt.register_tetrahedrisation("Before optim");
+    if (energy_evolution) {
       mean_energy << opt.getMeanEnergy() << std::endl;
       max_energy << opt.getMaxEnergy() << std::endl;
-      // tin->register_tetrahedrisation("After optim pass " +
-      // std::to_string(i));
-      std::cout << "Ending optimizing pass " << i << std::endl;
     }
-    opt.register_tetrahedrisation("After optim");
-    std::cout << "After optimization max energy is " << opt.getMaxEnergy()
-              << std::endl;
-    std::cout << "After optimization mean energy is " << opt.getMeanEnergy()
-              << std::endl;
-    mean_energy.close();
-    max_energy.close();
+    if (until_convergence) {
+      int i = 0;
+      if (verbose)
+        std::cout << "Starting optimizing pass " << i << std::endl;
+      bool converged = !opt.optimize();
+      if (verbose)
+        std::cout << "Ending optimizing pass " << i << std::endl;
+      if (energy_evolution) {
+        mean_energy << opt.getMeanEnergy() << std::endl;
+        max_energy << opt.getMaxEnergy() << std::endl;
+      }
+      while (!converged) {
+        i++;
+        if (verbose)
+          std::cout << "Starting optimizing pass " << i << std::endl;
+        converged = !opt.optimize();
+        if (verbose)
+          std::cout << "Ending optimizing pass " << i << std::endl;
+        if (energy_evolution) {
+          mean_energy << opt.getMeanEnergy() << std::endl;
+          max_energy << opt.getMaxEnergy() << std::endl;
+        }
+      }
+    } else {
+      for (int i = 0; i < 1; i++) {
+        if (verbose)
+          std::cout << "Starting optimizing pass " << i << std::endl;
+        opt.optimize();
+        if (energy_evolution) {
+          mean_energy << opt.getMeanEnergy() << std::endl;
+          max_energy << opt.getMaxEnergy() << std::endl;
+        }
+        if (verbose)
+          std::cout << "Ending optimizing pass " << i << std::endl;
+      }
+    }
+    if (polyscope)
+      opt.register_tetrahedrisation("After optim");
+    if (verbose) {
+      std::cout << "After optimization max energy is " << opt.getMaxEnergy()
+                << std::endl;
+      std::cout << "After optimization mean energy is " << opt.getMeanEnergy()
+                << std::endl;
+    }
+    if (energy_evolution) {
+      mean_energy.close();
+      max_energy.close();
+    }
   }
 
   return tin->mesh;
@@ -231,7 +283,6 @@ bool saveOutputFile(TetMesh &tin, const char *filename, const char *options) {
 
 int main(int argc, char *argv[]) {
   initFPU();
-  polyscope::init();
 
   if (argc < 2) {
     std::cout << "CDT - Create a constrained Delaunay tetrahedrization out of "
@@ -273,15 +324,23 @@ int main(int argc, char *argv[]) {
     } else
       memcpy(filename, argv[i], strlen(argv[i]) + 1);
 
+  if (options.find('p') != std::string::npos) {
+    polyscope::init();
+  }
+
   // Load a valid PLC from file
   inputPLC plc;
   plc.initFromFile(filename, options.find('v') != std::string::npos);
 
   TetMesh *tin = createSteinerCDT(plc, options.c_str());
 
-  if (saveOutputFile(*tin, filename, options.c_str()))
-    printf("Finished\n");
+  if (saveOutputFile(*tin, filename, options.c_str())) {
+    if (options.find('v') != std::string::npos)
+      printf("Finished\n");
+  }
 
-  polyscope::show();
+  if (options.find('p') != std::string::npos) {
+    polyscope::show();
+  }
   return 0;
 }

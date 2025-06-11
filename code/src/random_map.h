@@ -1,103 +1,101 @@
-#include <iostream>
-#include <unordered_map>
-#include <vector>
+#include "updatable_queue_template.h"
 #include <cstdlib>
 #include <ctime>
+#include <iostream>
+#include <memory>
+#include <optional>
 #include <stdexcept>
+#include <unordered_map>
+#include <vector>
 
 #pragma once
 
-template<typename K, typename V>
-class RandomMap {
+template <typename Item, typename Key>
+class UpdatableRandomQueue : public UpdatableQueue<Item, double, Key> {
 private:
-    std::unordered_map<K, V> data;          
-    std::vector<K> keys;                    
-    std::unordered_map<K, size_t> indices; 
+  std::unordered_map<Key, std::unique_ptr<Item>> data;
+  std::vector<Key> keys;
+  std::unordered_map<Key, size_t> indices;
 
 public:
-    RandomMap() {
-        std::srand(std::time(nullptr));
+  UpdatableRandomQueue() { std::srand(std::time(nullptr)); }
+
+  bool push(std::unique_ptr<Item> &&item_ptr, const double &priority) override {
+    if (data.find(item_ptr->id) == data.end()) {
+      keys.push_back(item_ptr->id);
+      indices[item_ptr->id] = keys.size() - 1;
+    }
+    data[item_ptr->id] = std::move(item_ptr);
+    return true;
+  }
+
+  std::optional<std::unique_ptr<Item>> pop() override {
+    if (data.empty()) {
+      return std::nullopt;
     }
 
-    void insert(const K& key, const V& value) {
-        if (data.find(key) == data.end()) {
-            keys.push_back(key);
-            indices[key] = keys.size() - 1;
-        }
-        data[key] = value;
+    int idx = std::rand() % keys.size();
+    Key key = keys[idx];
+
+    // Swap dans keys
+    Key last_key = keys.back();
+    std::swap(keys[idx], keys.back());
+
+    // Update indices après swap
+    indices[last_key] = idx;
+    indices.erase(key);
+
+    keys.pop_back();
+
+    std::unique_ptr<Item> value = std::move(data[key]);
+    data.erase(key);
+
+    return std::make_optional(std::move(value));
+  }
+
+  bool remove(const Key &key) override {
+    auto it = data.find(key);
+    if (it == data.end()) {
+      return false;
     }
 
-    std::pair<K, V> random_pop() {
-        if (data.empty()) {
-            throw std::out_of_range("pop from empty map");
-        }
+    size_t idx = indices[key];
+    Key last_key = keys.back();
 
-        int idx = std::rand() % keys.size();
-        K key = keys[idx];
+    // Swap la clé à supprimer avec la dernière dans keys
+    std::swap(keys[idx], keys.back());
 
-        // Swap dans keys
-        K last_key = keys.back();
-        std::swap(keys[idx], keys.back());
+    // Mettre à jour l’index du dernier élément
+    indices[last_key] = idx;
 
-        // Update indices après swap
-        indices[last_key] = idx;
-        indices.erase(key);
+    // Supprimer le dernier élément
+    keys.pop_back();
+    indices.erase(key);
+    data.erase(key);
 
-        keys.pop_back();
+    return true;
+  }
 
-        V value = data[key];
-        data.erase(key);
-
-        return {key, value};
+  bool update(std::unique_ptr<Item> &&item_ptr,
+              const double &newPriority) override {
+    if (data.find(item_ptr->id) != data.end()) {
+      push(std::move(item_ptr), newPriority);
+      return true;
     }
+    return false;
+  }
 
-    void erase(const K& key) {
-        auto it = data.find(key);
-        if (it == data.end()) {
-            return;
-        }
+  bool set(std::unique_ptr<Item> &&item_ptr,
+           const double &newPriority) override {
+    return push(std::move(item_ptr), newPriority);
+  }
 
-        size_t idx = indices[key];
-        K last_key = keys.back();
+  bool empty() const override { return data.empty(); }
 
-        // Swap la clé à supprimer avec la dernière dans keys
-        std::swap(keys[idx], keys.back());
+  size_t size() const override { return keys.size(); }
 
-        // Mettre à jour l’index du dernier élément
-        indices[last_key] = idx;
-
-        // Supprimer le dernier élément
-        keys.pop_back();
-        indices.erase(key);
-        data.erase(key);
-    }
-
-    const V& get(const K& key) const {
-        auto it = data.find(key);
-        if (it == data.end()) {
-            throw std::invalid_argument("key not found");
-        }
-        return it->second;
-    }
-
-    bool contains(const K& key) const {
-        return data.find(key) != data.end();
-    }
-
-    void print() const {
-        std::cout << "{ ";
-        for (const auto& k : keys) {
-            std::cout << k << ": " << data.at(k) << ", ";
-        }
-        std::cout << "}" << std::endl;
-    }
-
-    bool empty() const {
-        return data.empty();
-    }
-
-    size_t size() const {
-        return data.size();
-    }
+private:
+  bool contains(const Item &item) const {
+    return data.find(item->id) != data.end();
+  }
 };
-

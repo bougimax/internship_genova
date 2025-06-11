@@ -438,6 +438,10 @@ void TetMesh::VV(vertex v, std::vector<vertex> &vv) {
       seen_corner; // Static to avoid reallocation at each call
 
   tetrahedra start_tet = inc_tet[v];
+  if (start_tet == UINT64_MAX) {
+    std::cout << "No start tet for vertex " << v << ", there is "
+              << numVertices() << " vertices" << std::endl;
+  }
   assert(start_tet != UINT64_MAX);
 
   const corner tet_basis_corner = get_base_corner(start_tet);
@@ -798,7 +802,7 @@ void TetMesh::log_tetrahedra(tetrahedra t) {
     std::cout << "corner : " << get_i_th_corner_of_tetrahedra(t, i)
               << ", vertex : " << get_i_th_vertex_of_tetrahedra(t, i)
               << ", coords : "
-              << vector3d(vertices[get_i_th_vertex_of_tetrahedra(t, i)])
+              // << vector3d(vertices[get_i_th_vertex_of_tetrahedra(t, i)])
               << std::endl;
   }
 }
