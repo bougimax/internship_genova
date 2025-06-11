@@ -22,3 +22,13 @@ imgui.ini
 # Miscellaneous
 
 .DS_Store
+max_energy.txt
+mean_energy.txt
+
+# Dataset
+
+dataset
+
+# Codium debugging
+
+.vscode
