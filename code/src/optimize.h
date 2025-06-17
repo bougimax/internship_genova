@@ -8,9 +8,12 @@
 #include "random_map.h"
 #include "updatable_queue_template.h"
 #include "vector_3d.h"
+#include <fstream>
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <ostream>
+#include <string>
 #include <tuple>
 #include <type_traits>
 #include <vector>
@@ -24,6 +27,9 @@ class TetMeshOptimizer {
 public:
   bool verbose = false;
   bool random = false;
+  bool log = false;
+  std::ofstream *time_log;
+
   void set_mesh(TetMesh &mesh) { mesh_ = &mesh; }
   void set_quality_measure(
       std::function<double(const pointType *, const pointType *,
@@ -37,6 +43,7 @@ public:
   double getTotalEnergy();
   double getMaxEnergy();
   double getMeanEnergy();
+  std::string get_energy_distribution();
 
   void register_tetrahedrisation(string mesh_name);
 
@@ -45,6 +52,8 @@ public:
   ~TetMeshOptimizer() {};
 
 private:
+  void log_message(std::string message);
+
   TetMesh *mesh_;
   std::function<double(const pointType *, const pointType *, const pointType *,
                        const pointType *)>
@@ -280,6 +289,9 @@ private:
 
   void get_edges_from_tetrahedras(std::vector<TetMesh::edge> &all_edges,
                                   std::vector<TetMesh::tetrahedra> &tets) const;
+  void
+  get_edges_from_tetrahedras_bis(std::vector<TetMesh::edge> &all_edges,
+                                 std::vector<TetMesh::tetrahedra> &tets) const;
 
   void remove_vertex(vertex v);
   void remove_tetrahedra(tetrahedra t);

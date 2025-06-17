@@ -71,11 +71,7 @@ else()
     if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
         target_link_options(${PROJECT_NAME} PUBLIC -Wl,-z)
     endif()
-    if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-        target_link_options(${PROJECT_NAME} PUBLIC stacksize=8421376)
-    endif()
 
-    # target_link_options(${PROJECT_NAME} PUBLIC -Wl,-z,stacksize=8421376)
 
     # define macro
     if(NOT LGPL)

@@ -1,6 +1,7 @@
 #ifndef _TETMESH_
 #define _TETMESH_
 #include "numeric_wrapper.h"
+#include <cassert>
 
 #pragma intrinsic(fabs)
 

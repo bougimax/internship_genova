@@ -18,6 +18,8 @@ imgui.ini
 # Output files
 
 *.tet
+code/Input_file/*/
+cdt_log.csv
 
 # Miscellaneous
 

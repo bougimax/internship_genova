@@ -1,5 +1,6 @@
 #include "numeric_wrapper.h"
 #include <cstdint>
+#include <filesystem>
 #ifdef _MSC_VER // Workaround for known bug on MSVC
 #define _HAS_STD_BYTE                                                          \
   0 // https://developercommunity.visualstudio.com/t/error-c2872-byte-ambiguous-symbol/93889
@@ -135,15 +136,27 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
   // }
 
   if (optimize) {
-    ofstream mean_energy, max_energy;
-    if (energy_evolution) {
-      mean_energy.open("mean_energy.txt");
-      max_energy.open("max_energy.txt");
-    }
+    ofstream mean_energy, max_energy, energy_distribution, timings;
     TetMeshOptimizer opt;
+    if (log) {
+      std::filesystem::path input_filepath = std::string(plc.input_file_name);
+
+      std::filesystem::path logging_dir =
+          input_filepath.parent_path() / input_filepath.stem();
+
+      std::filesystem::create_directory(logging_dir);
+
+      mean_energy.open((logging_dir / std::string("mean_energy.txt")).c_str());
+      max_energy.open((logging_dir / std::string("max_energy.txt")).c_str());
+      energy_distribution.open(
+          (logging_dir / std::string("energy_distribution.txt")).c_str());
+      timings.open((logging_dir / std::string("timings.txt")).c_str());
+      opt.time_log = &timings;
+    }
     opt.set_mesh(*(tin->mesh));
     opt.verbose = verbose;
     opt.random = random;
+    opt.log = log;
     opt.get_all_tets_energy();
     if (verbose) {
       std::cout << "Before optimization mean energy is " << opt.getMeanEnergy()
@@ -153,9 +166,10 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     }
     if (polyscope)
       opt.register_tetrahedrisation("Before optim");
-    if (energy_evolution) {
+    if (log) {
       mean_energy << opt.getMeanEnergy() << std::endl;
       max_energy << opt.getMaxEnergy() << std::endl;
+      energy_distribution << opt.get_energy_distribution() << std::endl;
     }
     if (until_convergence) {
       int i = 0;
@@ -164,7 +178,7 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
       bool converged = !opt.optimize();
       if (verbose)
         std::cout << "Ending optimizing pass " << i << std::endl;
-      if (energy_evolution) {
+      if (log) {
         mean_energy << opt.getMeanEnergy() << std::endl;
         max_energy << opt.getMaxEnergy() << std::endl;
       }
@@ -175,19 +189,21 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
         converged = !opt.optimize();
         if (verbose)
           std::cout << "Ending optimizing pass " << i << std::endl;
-        if (energy_evolution) {
+        if (log) {
           mean_energy << opt.getMeanEnergy() << std::endl;
           max_energy << opt.getMaxEnergy() << std::endl;
+          energy_distribution << opt.get_energy_distribution() << std::endl;
         }
       }
     } else {
-      for (int i = 0; i < 1; i++) {
+      for (int i = 0; i < 5; i++) {
         if (verbose)
           std::cout << "Starting optimizing pass " << i << std::endl;
         opt.optimize();
-        if (energy_evolution) {
+        if (log) {
           mean_energy << opt.getMeanEnergy() << std::endl;
           max_energy << opt.getMaxEnergy() << std::endl;
+          energy_distribution << opt.get_energy_distribution() << std::endl;
         }
         if (verbose)
           std::cout << "Ending optimizing pass " << i << std::endl;
@@ -201,9 +217,11 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
       std::cout << "After optimization mean energy is " << opt.getMeanEnergy()
                 << std::endl;
     }
-    if (energy_evolution) {
+    if (log) {
       mean_energy.close();
       max_energy.close();
+      energy_distribution.close();
+      timings.close();
     }
   }
 

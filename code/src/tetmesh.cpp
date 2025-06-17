@@ -713,7 +713,7 @@ void TetMesh::checkMesh(bool checkDelaunay) {
 
   // Check neighbor-node coherence
   for (i = 0; i < numTets() * 4; i++)
-    if (!isToDelete(i)) {
+    if (!isGhost(get_tetrahedra_index_from_corner(i)) && !isToDelete(i)) {
       if (tetHasVertex(tet_neigh[i] >> 2, tet_node[i])) {
         std::cout << "The tetrahedra opposite to " << (i >> 2) << " which is "
                   << (tet_neigh[i] >> 2) << " both contains the vertex "
@@ -802,7 +802,7 @@ void TetMesh::log_tetrahedra(tetrahedra t) {
     std::cout << "corner : " << get_i_th_corner_of_tetrahedra(t, i)
               << ", vertex : " << get_i_th_vertex_of_tetrahedra(t, i)
               << ", coords : "
-              // << vector3d(vertices[get_i_th_vertex_of_tetrahedra(t, i)])
+              << vector3d(vertices[get_i_th_vertex_of_tetrahedra(t, i)])
               << std::endl;
   }
 }
