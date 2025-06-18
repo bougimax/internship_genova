@@ -69,7 +69,7 @@ else()
 
     # reserve enough stack size (correct place!)
     if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-        target_link_options(${PROJECT_NAME} PUBLIC -Wl,-z)
+        target_link_options(${PROJECT_NAME} PUBLIC -Wl)
     endif()
 
 
