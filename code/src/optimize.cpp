@@ -63,8 +63,10 @@ double TetMeshOptimizer::get_quality_measure(const pointType *p1,
 }
 
 double TetMeshOptimizer::get_quality_measure(const tetrahedra t) {
+  if (mesh_->has_infinite_vertex(t))
+    return DBL_MAX;
   std::vector<pointType *> points = mesh_->getTetPoints(t);
-  if (mesh_->has_infinite_vertex(t) || !is_oriented_good(points))
+  if (!is_oriented_good(points))
     return DBL_MAX;
   else
     return quality_measure_(
