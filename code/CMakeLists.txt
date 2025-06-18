@@ -67,12 +67,6 @@ else()
         target_compile_options(${PROJECT_NAME} PUBLIC -msse2)
     endif()
 
-    # reserve enough stack size (correct place!)
-    if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-        target_link_options(${PROJECT_NAME} PUBLIC -Wl)
-    endif()
-
-
     # define macro
     if(NOT LGPL)
         target_compile_options(${PROJECT_NAME} PUBLIC -DUSE_MAROTS_METHOD)
