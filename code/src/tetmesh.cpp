@@ -510,16 +510,25 @@ void TetMesh::ETfull(vertex v1, vertex v2, std::vector<tetrahedra> &et,
 void TetMesh::ETcorners(vertex v1, vertex v2, std::vector<tetrahedra> &et,
                         bool verbose) const {
   uint64_t t;
+  bool t_initialized = false;
   VTfull(v1, et, verbose);
   if (verbose)
     std::cout << "Got " << et.size() << " incident tet at v1" << std::endl;
   for (uint64_t s : et) {
     if (tetHasVertex(s, v2)) {
       t = (s << 2);
+      t_initialized = true;
       if (verbose)
         std::cout << "Init t" << std::endl;
       break;
     }
+  }
+
+  if (!t_initialized) {
+    if (verbose)
+      std::cout << "t unitialized" << std::endl;
+    et.clear();
+    return;
   }
 
   while (tet_node[t] == v1 || tet_node[t] == v2) {
