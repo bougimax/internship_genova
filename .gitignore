@@ -34,3 +34,7 @@ dataset
 # Codium debugging
 
 .vscode
+
+# Visualization
+
+code/visualization/

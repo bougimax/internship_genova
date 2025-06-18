@@ -1,6 +1,6 @@
 EXECUTABLE = ./build/cdt
 
-INPUT_FILE = Input_file/112544.off
+INPUT_FILE = Input_file/sphere.off
 
 BUILD_CMD = cmake --build build --config Release
 RUN_CMD = $(EXECUTABLE) -ovlpc $(INPUT_FILE)

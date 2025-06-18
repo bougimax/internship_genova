@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import imageio
 
 
 def parse_txt_file(filepath: str) -> list[float]:
@@ -67,29 +68,46 @@ def plot_energy_evolution(folder_paths: list[str], output_folder: str):
 
 
 def plot_distribution_evolution(filepath: str, output_folder: str):
-    fig, ax = plt.subplots()
     distributions = parse_txt_distribution_file(filepath)
 
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    for distrib in distributions[::5]:
-        counts, bins = np.histogram(distrib, 1000000)
-        ax.hist(counts, bins)
+    max_range = 1000
 
-    ax.set_xlabel("Energy")
-    ax.set_ylabel("Number of tetrahedras")
-    ax.legend()
-    fig.suptitle("Evolution of energy distribution")
-    fig.tight_layout()
-    fig.savefig(output_folder + "/energy_distribution_evolution.pdf")
-    plt.show()
+    for i, distrib in enumerate(distributions):
+        distrib = [x for x in distrib if x <= max_range]
+        fig, ax = plt.subplots()
+        ax.set_xscale("log")
+        ax.set_ylim(0, 1)
+        ax.set_xlim(3, max_range)
+        ax.hist(distrib, bins=5000, label=f"{i}th distribution", density=True)
+        ax.legend()
+        ax.set_xlabel("Energy")
+        ax.set_ylabel("Number of tetrahedras")
+        fig.suptitle("Evolution of energy distribution")
+        fig.tight_layout()
+        fig.savefig(output_folder + f"/energy_distribution_evolution_{i}.png")
+        print(f"Done {i}th pass")
+
+    frames = []
+
+    for i in range(len(distributions)):
+        image = imageio.v2.imread(
+            output_folder + f"/energy_distribution_evolution_{i}.png"
+        )
+        frames.append(image)
+
+    imageio.mimsave(
+        output_folder + "/energy_distribution_evolution.gif",
+        frames,
+        fps=5,
+        loop=1,
+    )
 
 
 FOLDER_PATHS = ["2025-06-03_energy_big_float", "2025-06-03_energy_double"]
 
 OUTPUT_FOLDER = "output/test"
 
-DISTRIBUTION_FILE = "test/112544_energy_distribution.txt"
+DISTRIBUTION_FILE = "test/energy_distribution.txt"
 
 # plot_energy_evolution(FOLDER_PATHS, OUTPUT_FOLDER)
 

@@ -244,9 +244,7 @@ private:
                        double Swap_edge_info::*field_to_optimize);
 
   void swap_edge(TetMesh::edge edge_to_swap, TetMesh::vertex collapse_vertex,
-                 std::vector<TetMesh::edge> &impacted_edges,
-                 std::vector<tetrahedra> &impacted_tets,
-                 std::vector<tetrahedra> &removed_tets);
+                 std::vector<TetMesh::edge> &impacted_edges);
 
   // Returns a pair where the first is wether it's valid and worth to swap the
   // edge, the second is on which vertex we should collapse the edge created
@@ -279,7 +277,7 @@ private:
              UpdatableQueue<Split_tetrahedra_info, double, tetrahedra> &queue);
 
   std::unique_ptr<Split_tetrahedra_info>
-  get_split_tetrahedra_info(TetMesh::tetrahedra t, bool verbose_debug = false);
+  get_split_tetrahedra_info(TetMesh::tetrahedra t);
 
   bool try_to_split_tetrahedra(std::unique_ptr<Split_tetrahedra_info> info);
   void split_tetrahedra_and_update(
@@ -289,9 +287,9 @@ private:
 
   void get_edges_from_tetrahedras(std::vector<TetMesh::edge> &all_edges,
                                   std::vector<TetMesh::tetrahedra> &tets) const;
-  void
-  get_edges_from_tetrahedras_bis(std::vector<TetMesh::edge> &all_edges,
-                                 std::vector<TetMesh::tetrahedra> &tets) const;
+  void get_incident_edges_from_tetrahedras(
+      std::vector<TetMesh::edge> &all_edges,
+      std::vector<TetMesh::tetrahedra> &tets) const;
 
   void remove_vertex(vertex v);
   void remove_tetrahedra(tetrahedra t);
