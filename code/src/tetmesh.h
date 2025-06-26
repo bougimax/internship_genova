@@ -1,7 +1,26 @@
 #ifndef _TETMESH_
 #define _TETMESH_
 #include "numeric_wrapper.h"
+#include "polyscope/curve_network.h"
+#include "polyscope/polyscope.h"
+#include "polyscope/volume_mesh.h"
+#include "vector_3d.h"
+#include <algorithm>
 #include <cassert>
+#include <cfloat>
+#include <cstddef>
+#include <cstdint>
+#include <float.h>
+#include <fstream>
+#include <iomanip>
+#include <iterator>
+#include <memory>
+#include <ostream>
+#include <queue>
+#include <set>
+#include <string>
+#include <tuple>
+#include <utility>
 
 #pragma intrinsic(fabs)
 

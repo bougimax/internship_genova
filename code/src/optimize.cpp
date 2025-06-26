@@ -1,16 +1,4 @@
 #include "optimize.h"
-#include "delaunay.h"
-#include "numeric_wrapper.h"
-#include "random_map.h"
-#include "updatable_queue_template.h"
-#include <cfloat>
-#include <cstddef>
-#include <filesystem>
-#include <iomanip>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <utility>
 
 /// HELPERS
 
@@ -87,9 +75,21 @@ double TetMeshOptimizer::get_quality_measure(
 
 void TetMeshOptimizer::log_message(std::string message) {
   auto now = std::chrono::system_clock::now();
-  std::string formatted_time = std::format("{0:%F_%T}", now);
+  std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+  std::tm tm = *std::localtime(&now_c);
+
+  std::ostringstream oss;
+  oss << std::put_time(&tm, "%F %T"); // équivalent ISO: YYYY-MM-DD HH:MM:SS
+  std::string formatted_time = oss.str();
+
   *time_log << formatted_time << ": " << message << std::endl;
 }
+
+// void TetMeshOptimizer::log_message(std::string message) {
+//   auto now = std::chrono::system_clock::now();
+//   std::string formatted_time = std::format("{0:%F_%T}", now);
+//   *time_log << formatted_time << ": " << message << std::endl;
+// }
 
 bool TetMeshOptimizer::optimize() {
   if (verbose) {
@@ -182,8 +182,8 @@ bool TetMeshOptimizer::optimize() {
     std::cout << "-----------------------------------------------\n"
               << std::endl;
   }
-    if (log)
-      log_message("End optimization pass");
+  if (log)
+    log_message("End optimization pass");
 
   return splitted || collapsed || swapped || moved;
 }
@@ -518,7 +518,6 @@ bool TetMeshOptimizer::link_condition(edge e) {
 
   mark_vertices(one_ring_v2, 0);
   mark_vertices(one_ring_v1, 1);
-
 
   for (vertex neighbour_v2 : one_ring_v2) {
     if (mesh_->marked_vertex[neighbour_v2] == 1) {
@@ -892,8 +891,7 @@ void TetMeshOptimizer::swap_edge_and_update(
 }
 
 void TetMeshOptimizer::swap_edge(edge edge_to_swap, vertex collapse_vertex,
-                                 std::vector<edge> &impacted_edges
-                                 ) {
+                                 std::vector<edge> &impacted_edges) {
   std::vector<vertex> one_ring;
   std::vector<tetrahedra> incident_tetrahedras;
   std::vector<vertex> neigh_collapse;
@@ -924,6 +922,18 @@ void TetMeshOptimizer::swap_edge(edge edge_to_swap, vertex collapse_vertex,
   std::vector<tetrahedra> impacted_tetrahedras_split;
   split_edge(edge_to_swap, mesh_->numVertices() - 1,
              impacted_tetrahedras_split);
+
+  if (!link_condition(
+          std::make_pair(collapse_vertex, mesh_->numVertices() - 1))) {
+    std::cout << "Was going to collapse without link condition" << std::endl;
+    std::vector<edge> removed_edges;
+    std::vector<tetrahedra> impacted_tetrahedras, removed_tetrahedras;
+    collapse_on_v1(
+        std::make_pair(edge_to_swap.second, mesh_->numVertices() - 1),
+        impacted_tetrahedras, removed_edges, removed_tetrahedras);
+    impacted_edges.clear();
+    return;
+  }
 
   std::vector<edge> removed_edges;
   std::vector<tetrahedra> impacted_tetrahedras, removed_tetrahedras;
@@ -1444,7 +1454,7 @@ TetMeshOptimizer::get_split_tetrahedra_info(tetrahedra t) {
       mesh_->oppositeTetEdgePair(t, current_edge, current_opposite_edge);
 
       if (mesh_->isOnBoundary(current_opposite_edge.first,
-                              current_opposite_edge.second)) 
+                              current_opposite_edge.second))
         continue;
 
       split_point = get_split_point(current_edge);
@@ -1483,7 +1493,7 @@ TetMeshOptimizer::get_split_tetrahedra_info(tetrahedra t) {
         }
       }
 
-      if (num_inc_tet <= 1) 
+      if (num_inc_tet <= 1)
         continue;
 
       incident_tetrahedras.clear();
@@ -1522,7 +1532,7 @@ TetMeshOptimizer::get_split_tetrahedra_info(tetrahedra t) {
         }
       }
 
-      if (num_inc_tet <= 1) 
+      if (num_inc_tet <= 1)
         continue;
 
       if (current_post_transformation_energy <
@@ -1616,7 +1626,7 @@ void TetMeshOptimizer::split_tetrahedra_and_update(
   impacted_tetrahedras_split.clear();
 
   if (!link_condition(
-          std::make_pair(mesh_->numVertices() - 2, mesh_->numVertices() - 1))) 
+          std::make_pair(mesh_->numVertices() - 2, mesh_->numVertices() - 1)))
     return;
 
   collapse_on_v1(
@@ -1670,21 +1680,22 @@ void TetMeshOptimizer::get_incident_edges_from_tetrahedras(
     std::vector<std::pair<uint32_t, uint32_t>> &all_edges,
     std::vector<tetrahedra> &tets) const {
   std::vector<vertex> neighbour;
+  std::unordered_set<vertex> explored_vertex;
   for (tetrahedra t : tets) {
     const uint32_t *tn = mesh_->tet_node.data() + (t << 2);
     if (tn[3] == INFINITE_VERTEX)
       continue;
     for (int i = 0; i < 4; i++) {
-      for (int j = i + 1; j < 4; j++)
-        if (tn[i] < tn[j])
-          all_edges.push_back(std::pair<uint32_t, uint32_t>(tn[i], tn[j]));
-        else
-          all_edges.push_back(std::pair<uint32_t, uint32_t>(tn[j], tn[i]));
-      neighbour.clear();
-      mesh_->VV(tn[i], neighbour);
-      for (vertex n : neighbour) {
-        all_edges.push_back(std::pair<uint32_t, uint32_t>(tn[i], n));
-        all_edges.push_back(std::pair<uint32_t, uint32_t>(n, tn[i]));
+      if (!explored_vertex.contains(tn[i])) {
+        neighbour.clear();
+        mesh_->VV(tn[i], neighbour);
+        for (vertex n : neighbour) {
+          if (tn[i] < n)
+            all_edges.push_back(std::pair<uint32_t, uint32_t>(tn[i], n));
+          else
+            all_edges.push_back(std::pair<uint32_t, uint32_t>(n, tn[i]));
+        }
+        explored_vertex.insert(tn[i]);
       }
     }
   }

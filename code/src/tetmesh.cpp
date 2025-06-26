@@ -1,23 +1,4 @@
 #include "tetmesh.h"
-#include "delaunay.h"
-#include "numeric_wrapper.h"
-#include "polyscope/curve_network.h"
-#include "polyscope/polyscope.h"
-#include "polyscope/volume_mesh.h"
-#include <algorithm>
-#include <cfloat>
-#include <cstddef>
-#include <cstdint>
-#include <float.h>
-#include <iomanip>
-#include <iterator>
-#include <memory>
-#include <ostream>
-#include <queue>
-#include <set>
-#include <string>
-#include <tuple>
-#include <utility>
 
 using namespace std;
 
@@ -547,6 +528,10 @@ void TetMesh::ETcorners(vertex v1, vertex v2, std::vector<tetrahedra> &et,
     t &= (~3);
     while (tet_node[t] == v1 || tet_node[t] == v2 || tet_node[t] == cv)
       t++;
+    if (tetCornerAtVertex(oc, tet_node[t]) == t) {
+      et.clear();
+      break;
+    }
     t = tetCornerAtVertex(oc,
                           tet_node[t]); // Get corresp corner at opposite tet
   } while (t != c0);

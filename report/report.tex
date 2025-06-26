@@ -6,6 +6,24 @@
 \begin{document}
 \maketitle
 
+\section{Introduction}
+
+The objective of this internship was to design and validate a greedy algorithm for refining Constrained Delaunay Tetrahedrizations (CDTs).
+
+CDTs are commonly used in physics-based simulations such as the finite element method. However, these simulations require high-quality meshes, which raw CDTs often fail to provide. Therefore, a refinement process is essential to improve the overall mesh quality and ensure the robustness and accuracy of the simulations.
+
+\section{Preliminary}
+
+\subsection{Delaunay's triangulation}
+
+\subsection{Piecewise Linear Complex}
+
+\subsection{Constrained Delaunay Triangulation}
+
+\subsection{Quality Measure}
+
+\newpage
+
 % Regular tetrahedra
 \tdplotsetmaincoords{70}{45} % view angle
 \begin{tikzpicture}[tdplot_main_coords, scale=3]
@@ -129,6 +147,69 @@
 
 \end{tikzpicture}
 
+% Face swap before
+\tdplotsetmaincoords{80}{10} % view angle
+\begin{tikzpicture}[tdplot_main_coords, scale=3]
+
+  % Vertices
+  \coordinate (A) at (0,0.1,0.1);
+  \coordinate (Ap) at (0,-0.1,-0.1);
+  \coordinate (C) at (0.5,0.866,0); % equilateral basis
+  \coordinate (D) at (0.5,0.3887,0.8165);
+  \coordinate (E) at (1.4,0.4,0.55);
+  \coordinate (F) at (-0.4,0.4,0.55);
+
+  % Edges
+  \draw[thick, line cap=round] (A) -- (D);
+  \draw[thick, line cap=round] (A) -- (F);
+  \draw[thick, line cap=round] (D) -- (F);
+  \draw[dashed, line cap=round] (C) -- (D);
+  \draw[thick, line cap=round] (Ap) -- (E);
+  \draw[thick, line cap=round] (C) -- (E);
+  \draw[dashed, line cap=round] (C) -- (F);
+  \draw[thick, line cap=round] (D) -- (E);
+  \draw[thick, line cap=round] (C) -- (A);
+
+  % Points
+  \draw (A) node[anchor=north east] {A};
+  \draw (C) node[anchor=north west] {C};
+  \draw (D) node[anchor=south west] {D};
+  \draw (E) node[anchor=south west] {E};
+  \draw (F) node[anchor=south east] {F};
+
+\end{tikzpicture}
+
+% Face swap after
+\tdplotsetmaincoords{70}{50} % view angle
+\begin{tikzpicture}[tdplot_main_coords, scale=3]
+
+  % Vertices
+  \coordinate (A) at (0,0,0);
+  \coordinate (C) at (0.5,0.866,0); % equilateral basis
+  \coordinate (D) at (0.5,0.3887,0.8165);
+  \coordinate (E) at (1.4,0.4,0.55);
+  \coordinate (F) at (-0.4,0.4,0.55);
+
+  % Edges
+  \draw[thick, line cap=round] (A) -- (D);
+  \draw[thick, line cap=round] (A) -- (F);
+  \draw[thick, line cap=round] (D) -- (F);
+  \draw[dashed, line cap=round] (C) -- (D);
+  \draw[thick, line cap=round] (A) -- (E);
+  \draw[thick, line cap=round] (C) -- (E);
+  \draw[dashed, line cap=round] (C) -- (F);
+  \draw[dashed, line cap=round] (E) -- (F);
+  \draw[thick, line cap=round] (D) -- (E);
+  \draw[thick, line cap=round] (C) -- (A);
+
+  % Points
+  \draw (A) node[anchor=north east] {A};
+  \draw (C) node[anchor=north west] {C};
+  \draw (D) node[anchor=south west] {D};
+  \draw (E) node[anchor=south west] {E};
+  \draw (F) node[anchor=south east] {F};
+
+\end{tikzpicture}
 
 
 \end{document}

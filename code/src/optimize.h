@@ -1,21 +1,28 @@
 #pragma once
 
-#include "delaunay.h"
 #include "numeric_wrapper.h"
-#include "polyscope/polyscope.h"
-#include "polyscope/volume_mesh.h"
 #include "quality_measure.h"
 #include "random_map.h"
+#include "tetmesh.h"
 #include "updatable_queue_template.h"
+#include "updatable_priority_queue.h"
 #include "vector_3d.h"
+#include <cfloat>
+#include <cstddef>
+#include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iomanip>
 #include <iterator>
 #include <memory>
+#include <format>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 using vertex = TetMesh::vertex;

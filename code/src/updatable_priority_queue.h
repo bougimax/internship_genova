@@ -1,3 +1,4 @@
+#pragma once
 #include "updatable_queue_template.h"
 #include <memory>
 #include <optional>

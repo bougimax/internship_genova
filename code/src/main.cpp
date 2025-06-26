@@ -10,8 +10,6 @@
 #include "delaunay.h"
 #include "inputPLC.h"
 #include "optimize.h"
-#include "polyscope/polyscope.h"
-#include "polyscope/volume_mesh.h"
 #include <fstream>
 #include <iostream>
 #include <ostream>

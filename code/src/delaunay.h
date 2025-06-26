@@ -2,17 +2,18 @@
 #define _DELAUNAY_
 
 #include "numeric_wrapper.h"
-#include "polyscope/curve_network.h"
-#include "polyscope/polyscope.h"
 #include "tetmesh.h"
 #include "vector_3d.h"
-#include "updatable_priority_queue.h"
+#include <algorithm>
 #include <assert.h>
+#include <cfloat>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <utility>
 #include <vector>
 
 using vertex = TetMesh::vertex;

@@ -146,39 +146,39 @@ output_inner = ps.register_volume_mesh(
     enabled=False,
 )
 
-output_edges = get_edges_from_faces(get_faces_from_tets(output_inner_tets))
-
-splitted_edges = list(
-    parse_splitted_edges(INPUT_FILEPATH + ".splitted_edges"),
-)
-
-output_inner_edges = ps.register_curve_network(
-    "Output inner cn", np.array(output_vertices), np.array(output_edges), radius=0.0001
-)
-
-output_splited_edges = ps.register_curve_network(
-    "Splitted edges only",
-    np.array(output_vertices),
-    np.array(splitted_edges),
-    radius=0.0001,
-)
-
-add_splitted_edges_only(INPUT_FILEPATH + ".splitted_edges")
-
-output_inner_edges.add_color_quantity(
-    "Splitted edges",
-    np.array(
-        [(1, 0, 0) if e in splitted_edges else (0.8, 0.8, 0.8) for e in output_edges]
-    ),
-    defined_on="edges",
-    enabled=True,
-)
-
-splitted_tets_ind = parse_splitted_tetrahedras(INPUT_FILEPATH + ".splitted_tetrahedras")
-
-splitted_tets = ps.register_volume_mesh(
-    "Splitted tets", np.array(output_vertices), np.array(splitted_tets_ind)
-)
+# output_edges = get_edges_from_faces(get_faces_from_tets(output_inner_tets))
+#
+# splitted_edges = list(
+#     parse_splitted_edges(INPUT_FILEPATH + ".splitted_edges"),
+# )
+#
+# output_inner_edges = ps.register_curve_network(
+#     "Output inner cn", np.array(output_vertices), np.array(output_edges), radius=0.0001
+# )
+#
+# output_splited_edges = ps.register_curve_network(
+#     "Splitted edges only",
+#     np.array(output_vertices),
+#     np.array(splitted_edges),
+#     radius=0.0001,
+# )
+#
+# add_splitted_edges_only(INPUT_FILEPATH + ".splitted_edges")
+#
+# output_inner_edges.add_color_quantity(
+#     "Splitted edges",
+#     np.array(
+#         [(1, 0, 0) if e in splitted_edges else (0.8, 0.8, 0.8) for e in output_edges]
+#     ),
+#     defined_on="edges",
+#     enabled=True,
+# )
+#
+# splitted_tets_ind = parse_splitted_tetrahedras(INPUT_FILEPATH + ".splitted_tetrahedras")
+#
+# splitted_tets = ps.register_volume_mesh(
+#     "Splitted tets", np.array(output_vertices), np.array(splitted_tets_ind)
+# )
 
 
 ps.show()
