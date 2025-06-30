@@ -11,11 +11,13 @@ Define main terms such as:
 * Constrained Delaunay Triangulation / Tetrahedrization
 * Quality measure
 
+# State of the art
+
 # Present the algorithm
 
 Present several operations that are used
 
-# Discuss the design of greedyness
+## Discuss the design of greedyness
 
 Sort, Upadatable Priority Queue, Upadatable Random Queue
 

@@ -1,6 +1,6 @@
 EXECUTABLE = ./build/cdt
 
-INPUT_FILE = Input_file/dataset/good_meshes/60100.off
+INPUT_FILE = Input_file/boeing_part.off
 
 BUILD_CMD = cmake --build build --config Release
 RUN_CMD = $(EXECUTABLE) -ovlpc $(INPUT_FILE)
