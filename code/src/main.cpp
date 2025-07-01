@@ -150,6 +150,7 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
           (logging_dir / std::string("energy_distribution.txt")).c_str());
       timings.open((logging_dir / std::string("timings.txt")).c_str());
       opt.time_log = &timings;
+      opt.mean_energy_log = &mean_energy;
     }
     opt.set_mesh(*(tin->mesh));
     opt.verbose = verbose;
@@ -194,7 +195,7 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
         }
       }
     } else {
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < 2; i++) {
         if (verbose)
           std::cout << "Starting optimizing pass " << i << std::endl;
         opt.optimize();

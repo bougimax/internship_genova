@@ -17,7 +17,7 @@ meshes = sorted(
     key=lambda f: f.stat().st_size,
 )
 
-start_mesh = 1571
+start_mesh = 0
 
 num_meshes = len(meshes)
 

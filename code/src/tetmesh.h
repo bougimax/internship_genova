@@ -18,6 +18,7 @@
 #include <ostream>
 #include <queue>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -232,7 +233,9 @@ public:
       return tb + 2;
     if (tet_node[tb + 3] == v)
       return tb + 3;
-    return UINT64_MAX;
+    throw std::runtime_error("No matching corner for " + std::to_string(v) +
+                             " in tet " +
+                             std::to_string(tb >> 2));
 
     // while (tet_node[tb] != v) tb++;
     // return tb;

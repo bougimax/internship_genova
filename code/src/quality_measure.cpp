@@ -46,7 +46,7 @@ double energy_dirichlet_big_float(const pointType *p1, const pointType *p2,
   j2 *= 0.5;
   j3 *= 0.5;
 
-  const bigfloat num = j1.dot(j1) + j2.dot(j2) + j3.dot(j3);
+  bigfloat num = j1.dot(j1) + j2.dot(j2) + j3.dot(j3);
   bigfloat det = j1.tripleProd(j3, j2);
   if (det.get_d() <= 0) {
     return DBL_MAX;

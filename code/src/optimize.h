@@ -4,18 +4,18 @@
 #include "quality_measure.h"
 #include "random_map.h"
 #include "tetmesh.h"
-#include "updatable_queue_template.h"
 #include "updatable_priority_queue.h"
+#include "updatable_queue_template.h"
 #include "vector_3d.h"
 #include <cfloat>
 #include <cstddef>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <functional>
 #include <iomanip>
 #include <iterator>
 #include <memory>
-#include <format>
 #include <ostream>
 #include <sstream>
 #include <string>
@@ -36,6 +36,7 @@ public:
   bool random = false;
   bool log = false;
   std::ofstream *time_log;
+  std::ofstream *mean_energy_log;
 
   void set_mesh(TetMesh &mesh) { mesh_ = &mesh; }
   void set_quality_measure(
@@ -52,7 +53,9 @@ public:
   double getMeanEnergy();
   std::string get_energy_distribution();
 
-  void register_tetrahedrisation(string mesh_name);
+  void register_tetrahedrisation(
+      string mesh_name,
+      const std::vector<std::vector<tetrahedra>> &higlighted_tetrahedras = {});
 
   TetMeshOptimizer() {};
   TetMeshOptimizer(TetMesh &mesh) { mesh_ = &mesh; };
@@ -60,6 +63,7 @@ public:
 
 private:
   void log_message(std::string message);
+  void log_mean_energy(std::string message = "");
 
   TetMesh *mesh_;
   std::function<double(const pointType *, const pointType *, const pointType *,
@@ -90,33 +94,82 @@ private:
     int prioritize = 0;
   };
 
+  struct Op_result {
+    bool success;
+  };
+
   struct Split_edge_info : public Op_info {
     TetMesh::edge edge;
     size_t id;
     pointType *split_point;
+    vertex split_vertex = INFINITE_VERTEX;
+
+    Split_edge_info(TetMesh::edge _e) : edge(_e) {}
+    Split_edge_info() = default;
   };
-  struct Split_tetrahedra_info : public Op_info {
-    TetMesh::tetrahedra tetrahedra;
-    TetMesh::tetrahedra id;
-    TetMesh::edge edge_to_split;
+
+  struct Split_edge_result : public Op_result {
+    std::vector<edge> impacted_edges;
+    std::vector<tetrahedra> impacted_tetrahedras;
   };
+
   struct Collapse_info : public Op_info {
     size_t id;
     TetMesh::edge edge;
+    vertex collapse_vertex;
+
+    Collapse_info(size_t _id, TetMesh::edge _e, vertex _v)
+        : id(_id), edge(_e), collapse_vertex(_v) {}
+
+    Collapse_info() = default;
   };
+
+  struct Collapse_result : public Op_result {
+    std::vector<edge> impacted_edges;
+    std::vector<edge> removed_edges;
+    std::vector<tetrahedra> removed_tetrahedras;
+    std::vector<tetrahedra> impacted_tetrahedras;
+  };
+
   struct Swap_edge_info : public Op_info {
     size_t id;
     TetMesh::edge edge;
     TetMesh::vertex collapse_vertex;
   };
+
+  struct Swap_edge_result : public Op_result {
+    std::vector<edge> impacted_edges;
+    std::vector<edge> removed_edges;
+  };
+
   struct Swap_face_info : public Op_info {
     TetMesh::corner id;
     TetMesh::corner face;
   };
+
+  struct Swap_face_result : public Op_result {
+    std::vector<corner> impacted_faces;
+  };
+
   struct Move_info : public Op_info {
     TetMesh::vertex id;
     TetMesh::vertex vertex;
-    pointType *barycenter;
+    pointType *coord_to_move_to;
+  };
+
+  struct Move_result : public Op_result {
+    std::vector<vertex> impacted_vertices;
+  };
+
+  struct Split_tetrahedra_info : public Op_info {
+    TetMesh::tetrahedra tetrahedra;
+    TetMesh::tetrahedra id;
+    TetMesh::edge edge_to_split;
+  };
+
+  struct Split_tetrahedra_result : public Op_result {
+    std::vector<tetrahedra> impacted_tetrahedras;
+    std::vector<tetrahedra> removed_tetrahedras;
   };
 
   /// Default fields to optimize
@@ -155,8 +208,8 @@ private:
                         double Split_edge_info::*field_to_optimize);
 
   // Split the edge edge_to_split with the vertex split_vertex in the middle
-  void split_edge(TetMesh::edge edge_to_split, TetMesh::vertex split_vertex,
-                  std::vector<TetMesh::tetrahedra> &impacted_tetrahedras);
+  void split_edge(std::unique_ptr<Split_edge_info> split_info,
+                  Split_edge_result *split_result);
 
   // SECOND PASS related functions:
 
@@ -193,23 +246,21 @@ private:
   // Returns a pair, the first is whether it's valid and worth to collapse the
   // edge, the second is on which end-vertices it should be collapsed (1 if on
   // edge.first, 2 if on edge.second)
-  std::unique_ptr<Collapse_info> get_collapse_info(TetMesh::edge &edge);
+  std::unique_ptr<Collapse_info> get_collapse_info(TetMesh::edge &edge,
+                                                   bool debug = false);
 
   // Returns if the link condition is valid to collapse an edge
   // For e := v1--v2, it returns if one_ring(v1) \intersected one_ring(v2) =
   // one_ring(e) where one_ring(vertex) is the neighbour vertices of the vertex
   // and one_ring(edge) is the vertices that share a face with v1 and v2 (e)
   bool link_condition(TetMesh::edge e);
-  void collapse_on_v1_and_update(
-      std::unique_ptr<Collapse_info> collapse_info,
-      UpdatableQueue<Collapse_info, double, size_t> &queue,
-      double Collapse_info::*field_to_optimize);
+  void collapse_and_update(std::unique_ptr<Collapse_info> collapse_info,
+                           UpdatableQueue<Collapse_info, double, size_t> &queue,
+                           double Collapse_info::*field_to_optimize);
 
   // Collapse an edge onto its first endpoint
-  bool collapse_on_v1(TetMesh::edge e,
-                      std::vector<TetMesh::tetrahedra> &impacted_tetrahedras,
-                      std::vector<TetMesh::edge> &removed_edges,
-                      std::vector<TetMesh::tetrahedra> &removed_tetrahedras);
+  void collapse(std::unique_ptr<Collapse_info> collapse_info,
+                Collapse_result *collapse_result);
 
   // THIRD PASS related functions:
 
@@ -236,9 +287,8 @@ private:
   double get_energy_from_swapping_face(TetMesh::corner face);
 
   // 2-3 swap
-  bool swap_face(TetMesh::corner face,
-                 std::vector<TetMesh::corner> &impacted_faces,
-                 bool prevent_inversion = true, double min_energy = DBL_MAX);
+  void swap_face(std::unique_ptr<Swap_face_info> swap_info,
+                 Swap_face_result *swap_result);
 
   // Execute the swap of the edges, it works by first splitting an edge then
   // collapse one of the edge created by the split vertex
@@ -250,8 +300,8 @@ private:
                        UpdatableQueue<Swap_edge_info, double, size_t> &queue,
                        double Swap_edge_info::*field_to_optimize);
 
-  void swap_edge(TetMesh::edge edge_to_swap, TetMesh::vertex collapse_vertex,
-                 std::vector<TetMesh::edge> &impacted_edges);
+  void swap_edge(std::unique_ptr<Swap_edge_info> swap_info,
+                 Swap_edge_result *swap_result);
 
   // Returns a pair where the first is wether it's valid and worth to swap the
   // edge, the second is on which vertex we should collapse the edge created
@@ -276,21 +326,24 @@ private:
   pointType *
   get_barycenter(TetMesh::vertex v,
                  std::vector<TetMesh::tetrahedra> &incident_tetrahedras);
-  void move_vertex(TetMesh::vertex v, pointType *coord_to_move);
+  void move_vertex(std::unique_ptr<Move_info> move_info,
+                   Move_result *move_result);
 
   // FIFTH PASS related functions:
-  void
+  bool
   fifth_pass(double Split_tetrahedra_info::*field_to_optimize,
              UpdatableQueue<Split_tetrahedra_info, double, tetrahedra> &queue);
 
   std::unique_ptr<Split_tetrahedra_info>
   get_split_tetrahedra_info(TetMesh::tetrahedra t);
 
-  bool try_to_split_tetrahedra(std::unique_ptr<Split_tetrahedra_info> info);
   void split_tetrahedra_and_update(
       std::unique_ptr<Split_tetrahedra_info> split_info,
       UpdatableQueue<Split_tetrahedra_info, double, tetrahedra> &queue,
       double Split_tetrahedra_info::*field_to_optimize);
+
+  void split_tetrahedra(std::unique_ptr<Split_tetrahedra_info> split_info,
+                        Split_tetrahedra_result *split_result);
 
   void get_edges_from_tetrahedras(std::vector<TetMesh::edge> &all_edges,
                                   std::vector<TetMesh::tetrahedra> &tets) const;

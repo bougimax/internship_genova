@@ -418,6 +418,10 @@ void TetMesh::VV(vertex v, std::vector<vertex> &vv) {
   static std::vector<corner> corner_queue,
       seen_corner; // Static to avoid reallocation at each call
 
+  if (v >= inc_tet.size()) {
+    std::cout << "Vertex " << v << " is out of range" << std::endl;
+  }
+  assert(v < inc_tet.size());
   tetrahedra start_tet = inc_tet[v];
   if (start_tet == UINT64_MAX) {
     std::cout << "No start tet for vertex " << v << ", there is "
@@ -793,11 +797,16 @@ void TetMesh::checkMesh(bool checkDelaunay) {
 void TetMesh::log_tetrahedra(tetrahedra t) {
   std::cout << "Tetrahedra " << t << " is composed of vertices:" << std::endl;
   for (int i = 0; i < 4; i++) {
-    std::cout << "corner : " << get_i_th_corner_of_tetrahedra(t, i)
-              << ", vertex : " << get_i_th_vertex_of_tetrahedra(t, i)
-              << ", coords : "
-              << vector3d(vertices[get_i_th_vertex_of_tetrahedra(t, i)])
-              << std::endl;
+    if (get_i_th_vertex_of_tetrahedra(t, i) != INFINITE_VERTEX)
+      std::cout << "corner : " << get_i_th_corner_of_tetrahedra(t, i)
+                << ", vertex : " << get_i_th_vertex_of_tetrahedra(t, i)
+                << ", coords : "
+                << vector3d(vertices[get_i_th_vertex_of_tetrahedra(t, i)])
+                << std::endl;
+    else
+      std::cout << "corner : " << get_i_th_corner_of_tetrahedra(t, i)
+                << ", vertex : " << get_i_th_vertex_of_tetrahedra(t, i)
+                << ", coords : INFINITE VERTEX" << std::endl;
   }
 }
 

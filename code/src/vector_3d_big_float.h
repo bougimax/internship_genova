@@ -1,6 +1,7 @@
 #pragma once
 
 #include "numeric_wrapper.h"
+#include "vector_3d.h"
 #include <cassert>
 
 class vec3d_bf {
@@ -22,7 +23,6 @@ public:
     } else {
       bigfloat d;
       p->getBigfloatLambda(c[0], c[1], c[2], d);
-      assert(sgn(d) != 0);
     }
   }
 
