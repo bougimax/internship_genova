@@ -40,6 +40,15 @@ public:
   typedef uint64_t corner;
   typedef uint64_t tetrahedra;
   typedef std::pair<vertex, vertex> edge;
+
+  struct edge_hash {
+    size_t operator()(const edge &e) const noexcept {
+      uint32_t a = e.first < e.second ? e.first : e.second;
+      uint32_t b = e.first < e.second ? e.second : e.first;
+      return (static_cast<size_t>(a) << 32) | b;
+    }
+  };
+
   // General purpose fields
 
   std::vector<pointType *> vertices; // Vertices
@@ -234,8 +243,7 @@ public:
     if (tet_node[tb + 3] == v)
       return tb + 3;
     throw std::runtime_error("No matching corner for " + std::to_string(v) +
-                             " in tet " +
-                             std::to_string(tb >> 2));
+                             " in tet " + std::to_string(tb >> 2));
 
     // while (tet_node[tb] != v) tb++;
     // return tb;
@@ -377,4 +385,8 @@ public:
 
   void log_tetrahedra(tetrahedra t);
 };
+inline std::ostream &operator<<(std::ostream &os, const TetMesh::edge &e) {
+  os << "(" << e.first << ", " << e.second << ")";
+  return os;
+}
 #endif // _TETMESH_

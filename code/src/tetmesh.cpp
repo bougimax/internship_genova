@@ -1,4 +1,6 @@
 #include "tetmesh.h"
+#include <stdexcept>
+#include <string>
 
 using namespace std;
 
@@ -543,6 +545,14 @@ void TetMesh::ETcorners(vertex v1, vertex v2, std::vector<tetrahedra> &et,
 
 void TetMesh::VTfull(vertex v, std::vector<tetrahedra> &vt,
                      bool verbose) const {
+
+  if (v >= numVertices()) {
+    throw std::runtime_error("Trying to compute neighbours for a vertex that "
+                             "does not exist, here is the vertex " +
+                             std::to_string(v) + ", there is only " +
+                             std::to_string(numVertices()) + "vertices.");
+  }
+
   static std::vector<uint64_t>
       vt_queue; // Static to avoid reallocation at each call
   uint64_t s, t = inc_tet[v];

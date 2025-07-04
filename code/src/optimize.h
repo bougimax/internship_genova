@@ -129,6 +129,7 @@ private:
     std::vector<edge> removed_edges;
     std::vector<tetrahedra> removed_tetrahedras;
     std::vector<tetrahedra> impacted_tetrahedras;
+    std::unordered_set<edge, TetMesh::edge_hash> set_impacted_edges;
   };
 
   struct Swap_edge_info : public Op_info {
@@ -241,7 +242,8 @@ private:
 
   double get_energy_from_collapsing(
       TetMesh::edge e,
-      std::vector<TetMesh::tetrahedra> &incident_tetrahedras_v2);
+      std::vector<TetMesh::tetrahedra> &incident_tetrahedras_v2,
+      bool debug = false);
 
   // Returns a pair, the first is whether it's valid and worth to collapse the
   // edge, the second is on which end-vertices it should be collapsed (1 if on
@@ -260,7 +262,7 @@ private:
 
   // Collapse an edge onto its first endpoint
   void collapse(std::unique_ptr<Collapse_info> collapse_info,
-                Collapse_result *collapse_result);
+                Collapse_result *collapse_result, bool debug = false);
 
   // THIRD PASS related functions:
 

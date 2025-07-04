@@ -523,10 +523,26 @@ void TetMeshOptimizer::collapse_and_update(
     UpdatableQueue<Collapse_info, double, size_t> &queue,
     double Collapse_info::*field_to_optimize) {
 
-  auto [v1, v2] = collapse_info->edge;
+  // std::cout << "Collapsing edge " << collapse_info->edge << std::endl;
+
+  auto collapse_info_check = get_collapse_info(collapse_info->edge, false);
+
+  // std::cout << "Check is " << collapse_info_check->is_good << std::endl;
+
+  if (!collapse_info_check->is_good) {
+    throw std::runtime_error("Check for collapsing is not good");
+  }
+
+  double max_energy_before = getMaxEnergy();
 
   auto collapse_result = std::make_unique<Collapse_result>();
-  collapse(std::move(collapse_info), collapse_result.get());
+  collapse(std::move(collapse_info), collapse_result.get(), false);
+
+  double max_energy_after = getMaxEnergy();
+
+  if (max_energy_before < max_energy_after) {
+    throw std::runtime_error("Collapse degraded the mesh");
+  }
 
   // Remove edges that have been suppressed
   for (edge e : collapse_result->removed_edges) {
@@ -586,10 +602,24 @@ bool TetMeshOptimizer::link_condition(edge e) {
 }
 
 double TetMeshOptimizer::get_energy_from_collapsing(
-    edge e, std::vector<tetrahedra> &incident_tetrahedras_v2) {
+    edge e, std::vector<tetrahedra> &incident_tetrahedras_v2, bool debug) {
+
+  if (incident_tetrahedras_v2.size() == 0) {
+    if (debug)
+      std::cout << "No incident tets, post transformation energy is " << DBL_MAX
+                << std::endl;
+    return DBL_MAX;
+  }
 
   auto [v1, v2] = e;
   double post_transformation_energy = 0.;
+
+  if (debug) {
+    std::cout << "Tetrahedras taken into account for changes of energy are:"
+              << std::endl;
+  }
+
+  int num_tet_taken_into_account = 0;
 
   for (tetrahedra t2 : incident_tetrahedras_v2) {
     if (!mesh_->has_infinite_vertex(t2) &&
@@ -600,13 +630,33 @@ double TetMeshOptimizer::get_energy_from_collapsing(
       t2_points[mesh_->get_index_of_vertex_in_tet(v2, t2)] =
           mesh_->vertices[v1];
 
-      if (!is_oriented_good(t2_points))
+      if (!is_oriented_good(t2_points)) {
+        if (debug)
+          std::cout << "Bad orientated tet, post transformation energy is "
+                    << DBL_MAX << std::endl;
         return DBL_MAX;
+      }
+
+      double energy_prevision = get_quality_measure(t2_points);
+
+      if (debug)
+        std::cout << "Tet " << t2 << " which energy will evolve from "
+                  << tetrahedras_energy[t2] << " to " << energy_prevision
+                  << std::endl;
 
       post_transformation_energy =
           std::max(post_transformation_energy, get_quality_measure(t2_points));
+
+      num_tet_taken_into_account++;
     }
   }
+
+  if (num_tet_taken_into_account == 0)
+    post_transformation_energy = DBL_MAX;
+
+  if (debug)
+    std::cout << "Post transformation energy is " << post_transformation_energy
+              << std::endl;
 
   return post_transformation_energy;
 }
@@ -649,37 +699,54 @@ TetMeshOptimizer::get_collapse_info(edge &e, bool debug) {
           std::max(pre_transformation_energy_v2, tetrahedras_energy[t]);
   }
 
+  if (debug)
+    std::cout << "Computing collapsing energy for edge " << e << " there is "
+              << mesh_->numVertices() - 1 << " vertices" << std::endl;
+
+  if (debug)
+    std::cout << "On v1" << std::endl;
   post_transformation_energy_v1 =
-      get_energy_from_collapsing(e, incident_tetrahedras_v2);
+      get_energy_from_collapsing(e, incident_tetrahedras_v2, debug);
+  if (debug)
+    std::cout << "On v2" << std::endl;
   post_transformation_energy_v2 = get_energy_from_collapsing(
-      std::make_pair(v2, v1), incident_tetrahedras_v1);
+      std::make_pair(v2, v1), incident_tetrahedras_v1, debug);
+
+  if (debug)
+    std::cout << "Pre transformation energy on v1 is "
+              << pre_transformation_energy_v1 << ",\n on v2 it's "
+              << pre_transformation_energy_v2 << std::endl;
 
   collapse_info->is_good =
-      (post_transformation_energy_v1 < pre_transformation_energy_v1) ||
-      (post_transformation_energy_v2 < pre_transformation_energy_v2);
+      (post_transformation_energy_v1 < pre_transformation_energy_v1 &&
+       pre_transformation_energy_v1 != DBL_MAX &&
+       post_transformation_energy_v1 != DBL_MAX) ||
+      (post_transformation_energy_v2 < pre_transformation_energy_v2 &&
+       pre_transformation_energy_v2 != DBL_MAX &&
+       post_transformation_energy_v2 != DBL_MAX);
 
   if (collapse_info->is_good) {
     double delta_v1 =
         pre_transformation_energy_v1 - post_transformation_energy_v1;
     double delta_v2 =
         pre_transformation_energy_v2 - post_transformation_energy_v2;
-    if (debug) {
-      std::cout << "Tet taken into account are: " << std::endl;
-    }
+    // if (debug) {
+    //   std::cout << "Tet taken into account are: " << std::endl;
+    // }
     if (delta_v1 > delta_v2) {
-      if (debug) {
-        for (tetrahedra t : incident_tetrahedras_v2)
-          std::cout << t << ", ";
-        std::cout << std::endl;
-      }
+      // if (debug) {
+      //   for (tetrahedra t : incident_tetrahedras_v2)
+      //     std::cout << t << ", ";
+      //   std::cout << std::endl;
+      // }
       collapse_info->delta = delta_v1;
       collapse_info->pre_energy = pre_transformation_energy_v1;
     } else {
-      if (debug) {
-        for (tetrahedra t : incident_tetrahedras_v1)
-          std::cout << t << ", ";
-        std::cout << std::endl;
-      }
+      // if (debug) {
+      //   for (tetrahedra t : incident_tetrahedras_v1)
+      //     std::cout << t << ", ";
+      //   std::cout << std::endl;
+      // }
       collapse_info->delta = delta_v2;
       collapse_info->pre_energy = pre_transformation_energy_v2;
     }
@@ -696,9 +763,12 @@ TetMeshOptimizer::get_collapse_info(edge &e, bool debug) {
 }
 
 void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
-                                Collapse_result *collapse_result) {
+                                Collapse_result *collapse_result, bool debug) {
 
   auto [v1, v2] = collapse_info->edge;
+
+  // if ((v1 == 4567 && v2 == 4569) || (v2 == 4567 && v1 == 4569))
+  //   debug = true;
 
   if (v1 != collapse_info->collapse_vertex) {
     v2 = v1;
@@ -708,7 +778,8 @@ void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
   collapse_result->success = false;
 
   if (v1 == INFINITE_VERTEX || v2 == INFINITE_VERTEX ||
-      mesh_->isOnBoundary(v2) || !mesh_->hasEdge(v1, v2)) {
+      mesh_->isOnBoundary(v2) || !mesh_->hasEdge(v1, v2) ||
+      !link_condition(collapse_info->edge)) {
     return;
   }
 
@@ -721,9 +792,17 @@ void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
   mesh_->VTfull(v2, incident_tetrahedras_v2);
   mesh_->VV(v2, neighbour_v2);
 
+  if (debug)
+    std::cout << "Adding former neigh of " << v2 << " to remove those edges"
+              << std::endl;
   for (vertex neighbour : neighbour_v2) {
+    if (debug)
+      std::cout << "Adding edge " << make_edge(v2, neighbour)
+                << " to edges to remove" << std::endl;
     collapse_result->removed_edges.push_back(make_edge(v2, neighbour));
   }
+  if (debug)
+    std::cout << std::endl;
 
   edge opposite_edge;
   corner opposite_corner_1, opposite_corner_2, potential_corner_to_change;
@@ -736,6 +815,7 @@ void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
   }
 
   mesh_->inc_tet[v1] = UINT64_MAX;
+  mesh_->inc_tet[v2] = UINT64_MAX;
 
   for (tetrahedra t : incident_tetrahedras) {
 
@@ -753,7 +833,6 @@ void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
       mesh_->inc_tet[v1] = t1;
     }
 
-    mesh_->inc_tet[v2] = UINT64_MAX;
     if (opposite_edge.first != INFINITE_VERTEX && !mesh_->isGhost(t1)) {
       mesh_->inc_tet[opposite_edge.first] = t1;
       mesh_->inc_tet[opposite_edge.second] = t1;
@@ -766,6 +845,7 @@ void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
   }
 
   for (tetrahedra t : incident_tetrahedras_v2) {
+    collapse_result->impacted_tetrahedras.push_back(t);
     potential_corner_to_change = mesh_->get_corner_in_tet(t, v2);
     if (potential_corner_to_change != UINT64_MAX &&
         !mesh_->tetHasVertex(t, v1)) {
@@ -774,6 +854,10 @@ void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
       }
       mesh_->tet_node[potential_corner_to_change] = v1;
       // Update energy for t2
+      if (debug)
+        std::cout << "Change energy for tet " << t << " from "
+                  << tetrahedras_energy[t] << " to " << get_quality_measure(t)
+                  << std::endl;
       tetrahedras_energy[t] = get_quality_measure(t);
       deformed_tetrahedras.push_back(t);
     }
@@ -808,6 +892,9 @@ void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
     for (vertex neighbour : impacted_vertex_remap) {
       collapse_result->removed_edges.push_back(
           make_edge(last_vertex, neighbour));
+      if (debug)
+        std::cout << "Adding edge " << make_edge(last_vertex, neighbour)
+                  << " to edges to remove" << std::endl;
     }
   }
 
@@ -819,6 +906,7 @@ void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
 
   for (tetrahedra t : deformed_tetrahedras) {
     remap_tetrahedra(t);
+    collapse_result->impacted_tetrahedras.push_back(t);
     for (int i = 0; i < 4; i++) {
       vertex current_vertex = mesh_->get_i_th_vertex_of_tetrahedra(t, i);
       if (!seen_vertices.contains(current_vertex) &&
@@ -827,13 +915,35 @@ void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
         neighbours.clear();
         mesh_->VV(current_vertex, neighbours);
         for (vertex neighbour : neighbours) {
-          if (current_vertex >= mesh_->numVertices() ||
-              neighbour >= mesh_->numVertices()) {
-            std::cout << "Got an edge with undefined vertices" << std::endl;
-          }
           collapse_result->impacted_edges.push_back(
               make_edge(current_vertex, neighbour));
+          if (debug)
+            std::cout << "Adding edge " << make_edge(current_vertex, neighbour)
+                      << " to impacted edges from neighbours of "
+                      << current_vertex << std::endl;
+          collapse_result->set_impacted_edges.insert(
+              make_edge(current_vertex, neighbour));
         }
+      }
+    }
+  }
+
+  for (vertex current_vertex : neighbour_v2) {
+    if (!seen_vertices.contains(current_vertex) &&
+        current_vertex != INFINITE_VERTEX &&
+        current_vertex < mesh_->numVertices()) {
+      seen_vertices.insert(current_vertex);
+      neighbours.clear();
+      mesh_->VV(current_vertex, neighbours);
+      for (vertex neighbour : neighbours) {
+        collapse_result->impacted_edges.push_back(
+            make_edge(current_vertex, neighbour));
+        if (debug)
+          std::cout << "Adding edge " << make_edge(current_vertex, neighbour)
+                    << " to impacted edges from neighbours of "
+                    << current_vertex << std::endl;
+        collapse_result->set_impacted_edges.insert(
+            make_edge(current_vertex, neighbour));
       }
     }
   }
@@ -844,6 +954,19 @@ void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
       std::unique(collapse_result->impacted_edges.begin(),
                   collapse_result->impacted_edges.end()),
       collapse_result->impacted_edges.end());
+
+  if (collapse_result->impacted_edges.size() !=
+      collapse_result->set_impacted_edges.size()) {
+    std::cout << "Impacted edges after sorting: [" << std::endl;
+    for (edge e : collapse_result->impacted_edges) {
+      std::cout << e << "," << std::endl;
+    }
+    std::cout << "]\nIt's different from the set which is: {" << std::endl;
+    for (edge e : collapse_result->set_impacted_edges) {
+      std::cout << e << "," << std::endl;
+    }
+    std::cout << "}" << std::endl;
+  }
 
   mesh_->VTfull(v1, collapse_result->impacted_tetrahedras);
   temp_remap_vertex.clear();
@@ -1571,9 +1694,6 @@ bool TetMeshOptimizer::fifth_pass(
       split_tetrahedra_and_update(std::move(split_info.value()), queue,
                                   field_to_optimize);
       num_tetrahedra_splitted++;
-      std::cout << "Already splitted " << num_tetrahedra_splitted
-                << " tetrahedras" << std::endl;
-
     } else
       break;
   }
@@ -1591,7 +1711,8 @@ bool TetMeshOptimizer::fifth_pass(
 std::unique_ptr<TetMeshOptimizer::Split_tetrahedra_info>
 TetMeshOptimizer::get_split_tetrahedra_info(tetrahedra t) {
 
-  bool debug = (t == 26741 || t == 173);
+  bool debug = false;
+  // bool debug = (t == 26741 || t == 173);
 
   if (debug)
     std::cout << "Computing collapse info for tet " << t << std::endl;
@@ -1816,6 +1937,7 @@ void TetMeshOptimizer::split_tetrahedra_and_update(
 void TetMeshOptimizer::split_tetrahedra(
     std::unique_ptr<Split_tetrahedra_info> split_info,
     Split_tetrahedra_result *split_result) {
+
   split_result->success = false;
 
   tetrahedra tet_to_split = split_info->tetrahedra;
@@ -1828,7 +1950,7 @@ void TetMeshOptimizer::split_tetrahedra(
                              std::to_string(tet_to_split));
   }
 
-  bool debug = tet_to_split == 1518;
+  bool debug = false;
 
   edge opposite_edge, opposite_edge_update;
 
@@ -1840,20 +1962,40 @@ void TetMeshOptimizer::split_tetrahedra(
   split_edge(std::move(std::make_unique<Split_edge_info>(edge_to_split)),
              split_edge_result.get());
 
+  if (debug)
+    std::cout << "Treating split edge result of the first split" << std::endl;
   for (tetrahedra t : split_edge_result->impacted_tetrahedras) {
+    if (debug)
+      std::cout << "Treating tet " << t << std::endl;
     if (mesh_->tetHasVertex(t, edge_to_split.first)) {
       mesh_->oppositeTetEdgePair(
           t, make_edge(edge_to_split.first, mesh_->numVertices() - 1),
           opposite_edge_update);
-      mesh_->ETfull(opposite_edge_update.first, opposite_edge_update.second,
-                    split_result->impacted_tetrahedras);
+      if (debug)
+        std::cout << "Adding adjacent tet to edge " << opposite_edge_update
+                  << " because " << t << " has vertex " << edge_to_split.first
+                  << std::endl;
+      if (opposite_edge_update.first != INFINITE_VERTEX)
+        mesh_->VTfull(opposite_edge_update.first,
+                      split_result->impacted_tetrahedras);
+      if (opposite_edge_update.second != INFINITE_VERTEX)
+        mesh_->VTfull(opposite_edge_update.second,
+                      split_result->impacted_tetrahedras);
     } else {
       if (mesh_->tetHasVertex(t, edge_to_split.second)) {
         mesh_->oppositeTetEdgePair(
             t, make_edge(edge_to_split.second, mesh_->numVertices() - 1),
             opposite_edge_update);
-        mesh_->ETfull(opposite_edge_update.first, opposite_edge_update.second,
-                      split_result->impacted_tetrahedras);
+        if (debug)
+          std::cout << "Adding adjacent tet to edge " << opposite_edge_update
+                    << " because " << t << " has vertex " << edge_to_split.first
+                    << std::endl;
+        if (opposite_edge_update.first != INFINITE_VERTEX)
+          mesh_->VTfull(opposite_edge_update.first,
+                        split_result->impacted_tetrahedras);
+        if (opposite_edge_update.second != INFINITE_VERTEX)
+          mesh_->VTfull(opposite_edge_update.second,
+                        split_result->impacted_tetrahedras);
       }
     }
   }
@@ -1863,20 +2005,40 @@ void TetMeshOptimizer::split_tetrahedra(
   split_edge(std::move(std::make_unique<Split_edge_info>(opposite_edge)),
              split_edge_result.get());
 
+  if (debug)
+    std::cout << "Treating split edge result of the second split" << std::endl;
   for (tetrahedra t : split_edge_result->impacted_tetrahedras) {
+    if (debug)
+      std::cout << "Treating tet " << t << std::endl;
     if (mesh_->tetHasVertex(t, opposite_edge.first)) {
       mesh_->oppositeTetEdgePair(
           t, make_edge(opposite_edge.first, mesh_->numVertices() - 1),
           opposite_edge_update);
-      mesh_->ETfull(opposite_edge_update.first, opposite_edge_update.second,
-                    split_result->impacted_tetrahedras);
+      if (debug)
+        std::cout << "Adding adjacent tet to edge " << opposite_edge_update
+                  << " because " << t << " has vertex " << opposite_edge.first
+                  << std::endl;
+      if (opposite_edge_update.first != INFINITE_VERTEX)
+        mesh_->VTfull(opposite_edge_update.first,
+                      split_result->impacted_tetrahedras);
+      if (opposite_edge_update.second != INFINITE_VERTEX)
+        mesh_->VTfull(opposite_edge_update.second,
+                      split_result->impacted_tetrahedras);
     } else {
       if (mesh_->tetHasVertex(t, opposite_edge.second)) {
         mesh_->oppositeTetEdgePair(
             t, make_edge(opposite_edge.second, mesh_->numVertices() - 1),
             opposite_edge_update);
-        mesh_->ETfull(opposite_edge_update.first, opposite_edge_update.second,
-                      split_result->impacted_tetrahedras);
+        if (debug)
+          std::cout << "Adding adjacent tet to edge " << opposite_edge_update
+                    << " because " << t << " has vertex "
+                    << opposite_edge.second << std::endl;
+        if (opposite_edge_update.first != INFINITE_VERTEX)
+          mesh_->VTfull(opposite_edge_update.first,
+                        split_result->impacted_tetrahedras);
+        if (opposite_edge_update.second != INFINITE_VERTEX)
+          mesh_->VTfull(opposite_edge_update.second,
+                        split_result->impacted_tetrahedras);
       }
     }
   }
@@ -1907,6 +2069,13 @@ void TetMeshOptimizer::split_tetrahedra(
       collapse_result->removed_tetrahedras.begin(),
       collapse_result->removed_tetrahedras.end());
 
+  if (debug) {
+    for (tetrahedra t : collapse_result->impacted_tetrahedras) {
+      std::cout << "Adding tet " << t
+                << " to update because it's impacted by the split" << std::endl;
+    }
+  }
+
   split_result->impacted_tetrahedras.reserve(
       split_result->impacted_tetrahedras.size() +
       distance(collapse_result->impacted_tetrahedras.begin(),
@@ -1915,6 +2084,12 @@ void TetMeshOptimizer::split_tetrahedra(
       split_result->impacted_tetrahedras.end(),
       collapse_result->impacted_tetrahedras.begin(),
       collapse_result->impacted_tetrahedras.end());
+  std::sort(split_result->impacted_tetrahedras.begin(),
+            split_result->impacted_tetrahedras.end());
+  split_result->impacted_tetrahedras.erase(
+      std::unique(split_result->impacted_tetrahedras.begin(),
+                  split_result->impacted_tetrahedras.end()),
+      split_result->impacted_tetrahedras.end());
 
   split_result->success = true;
 }
@@ -2046,6 +2221,8 @@ void TetMeshOptimizer::remove_tetrahedra(tetrahedra t) {
 
 void TetMeshOptimizer::remove_vertex(vertex v) {
   vertex last_vertex = mesh_->numVertices() - 1;
+  // std::cout << "Removing vertex " << v << " and remapping " << last_vertex
+  //           << " to it" << std::endl;
   if (v != last_vertex) {
     mesh_->vertices[v] = mesh_->vertices[last_vertex];
 
