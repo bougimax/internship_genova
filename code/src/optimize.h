@@ -25,10 +25,33 @@
 #include <utility>
 #include <vector>
 
+inline std::unordered_map<std::string, long long> tempsCumules;
+
 using vertex = TetMesh::vertex;
 using edge = TetMesh::edge;
 using corner = TetMesh::corner;
 using tetrahedra = TetMesh::tetrahedra;
+
+class ChronoAuto {
+  std::string nom;
+  std::chrono::high_resolution_clock::time_point debut;
+
+public:
+  ChronoAuto(const std::string &nomFonction) : nom(nomFonction) {
+    debut = std::chrono::high_resolution_clock::now();
+  }
+
+  ~ChronoAuto() {
+    auto fin = std::chrono::high_resolution_clock::now();
+    auto duree =
+        std::chrono::duration_cast<std::chrono::microseconds>(fin - debut)
+            .count();
+    if (tempsCumules.contains(nom))
+      tempsCumules[nom] += duree;
+    else
+      tempsCumules[nom] = duree;
+  }
+};
 
 class TetMeshOptimizer {
 public:
@@ -37,6 +60,7 @@ public:
   bool log = false;
   std::ofstream *time_log;
   std::ofstream *mean_energy_log;
+  std::ofstream *max_energy_log;
 
   void set_mesh(TetMesh &mesh) { mesh_ = &mesh; }
   void set_quality_measure(
@@ -63,7 +87,7 @@ public:
 
 private:
   void log_message(std::string message);
-  void log_mean_energy(std::string message = "");
+  void log_energy();
 
   TetMesh *mesh_;
   std::function<double(const pointType *, const pointType *, const pointType *,

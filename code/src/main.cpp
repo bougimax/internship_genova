@@ -151,6 +151,7 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
       timings.open((logging_dir / std::string("timings.txt")).c_str());
       opt.time_log = &timings;
       opt.mean_energy_log = &mean_energy;
+      opt.max_energy_log = &max_energy;
     }
     opt.set_mesh(*(tin->mesh));
     opt.verbose = verbose;
