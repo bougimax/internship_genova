@@ -18,6 +18,10 @@ imgui.ini
 # Output files
 
 *.tet
+*.face
+*.node
+*.ele
+*.smesh
 code/Input_file/*/
 cdt_log.csv
 

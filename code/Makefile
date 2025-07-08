@@ -1,7 +1,7 @@
 EXECUTABLE = ./build/cdt
 
-# INPUT_FILE = Input_file/dataset/134630.off
-INPUT_FILE = Input_file/112544.off
+INPUT_FILE = Input_file/dataset/60100.off
+# INPUT_FILE = Input_file/112544.off
 
 BUILD_CMD = cmake --build build --config Release
 RUN_CMD = $(EXECUTABLE) -ovlpc $(INPUT_FILE)

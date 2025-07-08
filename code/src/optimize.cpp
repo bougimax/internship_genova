@@ -11,7 +11,6 @@
 
 /// HELPERS
 
-
 template <class T> void remove_duplicates(std::vector<T> &vec) {
   std::sort(vec.begin(), vec.end());
   vec.erase(std::unique(vec.begin(), vec.end()), vec.end());
@@ -545,7 +544,7 @@ void TetMeshOptimizer::collapse_and_update(
     UpdatableQueue<Collapse_info, double, size_t> &queue,
     double Collapse_info::*field_to_optimize) {
 
-  //ChronoAuto chrono(__func__);
+  // ChronoAuto chrono(__func__);
 
   auto collapse_info_check = get_collapse_info(collapse_info->edge, false);
 
@@ -616,7 +615,7 @@ bool TetMeshOptimizer::link_condition(edge e) {
 double TetMeshOptimizer::get_energy_from_collapsing(
     edge e, std::vector<tetrahedra> &incident_tetrahedras_v2, bool debug) {
 
-  //ChronoAuto chrono(__func__);
+  // ChronoAuto chrono(__func__);
   if (incident_tetrahedras_v2.size() == 0) {
     return DBL_MAX;
   }
@@ -656,7 +655,7 @@ double TetMeshOptimizer::get_energy_from_collapsing(
 
 std::unique_ptr<TetMeshOptimizer::Collapse_info>
 TetMeshOptimizer::get_collapse_info(edge &e, bool debug) {
-  //ChronoAuto chrono(__func__);
+  // ChronoAuto chrono(__func__);
 
   auto collapse_info = std::make_unique<Collapse_info>();
 
@@ -733,7 +732,7 @@ TetMeshOptimizer::get_collapse_info(edge &e, bool debug) {
 void TetMeshOptimizer::collapse(std::unique_ptr<Collapse_info> collapse_info,
                                 Collapse_result *collapse_result, bool debug) {
 
-  //ChronoAuto chrono(__func__);
+  // ChronoAuto chrono(__func__);
 
   auto [v1, v2] = collapse_info->edge;
 
@@ -1046,7 +1045,7 @@ void TetMeshOptimizer::swap_edge_and_update(
     std::unique_ptr<Swap_edge_info> swap_info,
     UpdatableQueue<Swap_edge_info, double, size_t> &queue,
     double Swap_edge_info::*field_to_optimize) {
-  //ChronoAuto chrono(__func__);
+  // ChronoAuto chrono(__func__);
   std::vector<edge> impacted_edges;
   std::vector<tetrahedra> impacted_tets, removed_tets;
   auto swap_result = std::make_unique<Swap_edge_result>();
@@ -1211,7 +1210,7 @@ double TetMeshOptimizer::get_energy_from_swapping_face(corner face) {
 
 std::unique_ptr<TetMeshOptimizer::Swap_edge_info>
 TetMeshOptimizer::get_swap_edge_info(edge e, bool verbose) {
-  //ChronoAuto chrono(__func__);
+  // ChronoAuto chrono(__func__);
 
   std::unique_ptr<Swap_edge_info> swap_info =
       std::make_unique<Swap_edge_info>();
@@ -1640,7 +1639,7 @@ bool TetMeshOptimizer::fifth_pass(
 
 std::unique_ptr<TetMeshOptimizer::Split_tetrahedra_info>
 TetMeshOptimizer::get_split_tetrahedra_info(tetrahedra t) {
-  //ChronoAuto chrono(__func__);
+  // ChronoAuto chrono(__func__);
 
   std::unique_ptr<Split_tetrahedra_info> split_info =
       std::make_unique<Split_tetrahedra_info>();
@@ -1819,7 +1818,7 @@ void TetMeshOptimizer::split_tetrahedra_and_update(
     UpdatableQueue<Split_tetrahedra_info, double, tetrahedra> &queue,
     double Split_tetrahedra_info::*field_to_optimize) {
 
-  //ChronoAuto chrono(__func__);
+  // ChronoAuto chrono(__func__);
   auto split_result = std::make_unique<Split_tetrahedra_result>();
   split_tetrahedra(std::move(split_info), split_result.get());
 
@@ -1849,7 +1848,7 @@ void TetMeshOptimizer::split_tetrahedra_and_update(
 void TetMeshOptimizer::split_tetrahedra(
     std::unique_ptr<Split_tetrahedra_info> split_info,
     Split_tetrahedra_result *split_result) {
-  //ChronoAuto chrono(__func__);
+  // ChronoAuto chrono(__func__);
 
   split_result->success = false;
 
