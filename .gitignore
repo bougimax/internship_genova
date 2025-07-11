@@ -9,6 +9,13 @@ build/
 *.fls
 *.log
 *.synctex.gz
+*.bbl
+*.bbl-SAVE-ERROR
+*.bcf
+*.bcf-SAVE-ERROR
+*.blg
+*.out
+*.run.xml
 
 # Polyscope
 

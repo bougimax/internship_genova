@@ -1,0 +1,63 @@
+\begin{figure}[!htb]
+	\centering
+
+	\begin{tikzpicture}
+
+		% First tetrahedron (Before)
+		\node (Before) at (0,0) {
+			\tdplotsetmaincoords{70}{45}
+			\begin{tikzpicture}[tdplot_main_coords, scale=3]
+				\coordinate (A) at (0,0,0);
+				\coordinate (B) at (1,0,0);
+				\coordinate (C) at (0.5,0.866,0);
+				\coordinate (D) at (0.5,0.2887,0.8165);
+
+				\draw[thick] (A) -- (D);
+				\draw[thick] (B) -- (D);
+				\draw[thick] (C) -- (D);
+				\draw[thick] (A) -- (B);
+				\draw[thick] (B) -- (C);
+				\draw[dashed] (C) -- (A);
+
+				\draw (A) node[anchor=north east] {A};
+				\draw (B) node[anchor=north east] {B};
+				\draw (C) node[anchor=north west] {C};
+				\draw (D) node[anchor=south west] {D};
+			\end{tikzpicture}
+		};
+
+		% Second tetrahedron (After)
+		\node (After) at (6,0) {
+			\tdplotsetmaincoords{70}{45}
+			\begin{tikzpicture}[tdplot_main_coords, scale=3]
+				\coordinate (A) at (0,0,0);
+				\coordinate (B) at (1,0,0);
+				\coordinate (C) at (0.5,0.866,0);
+				\coordinate (D) at (0.5,0.2887,0.8165);
+				\coordinate (E) at (0.5,0,0);
+
+				\draw[thick] (A) -- (D);
+				\draw[thick] (B) -- (D);
+				\draw[thick] (C) -- (D);
+				\draw[thick] (A) -- (B);
+				\draw[thick] (B) -- (C);
+				\draw[dashed] (C) -- (A);
+				\draw[thick, red] (E) -- (D);
+				\draw[dashed, red] (E) -- (C);
+
+				\draw (A) node[anchor=north east] {A};
+				\draw (B) node[anchor=north east] {B};
+				\draw (C) node[anchor=north west] {C};
+				\draw (D) node[anchor=south west] {D};
+				\draw (E) node[anchor=north east] {M};
+			\end{tikzpicture}
+		};
+
+		% Arrow between them
+		\draw[->, thick] (Before.east) -- (After.west);
+
+	\end{tikzpicture}
+
+	\caption{Example of splitting an edge}
+	\label{fig:splitEdge}
+\end{figure}

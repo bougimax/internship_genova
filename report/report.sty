@@ -1,2 +1,19 @@
-\usepackage{tikz, tikz-3dplot}
-\usepackage[a4paper, total={6in, 8in}]{geometry}
+\usepackage{tikz, tikz-3dplot, amsthm, amsfonts, amssymb, hyperref, biblatex, amsmath}
+\usepackage[a4paper, total={6.5in, 8.5in}]{geometry}
+\usetikzlibrary{positioning}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}[section]
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\DT}[1]{DT(#1)}
+\newcommand{\Tr}[1]{\mathrm{Tr}(#1)}
+\newcommand{\St}[1]{\mathrm{St}(#1)}
+\newcommand{\Lk}[1]{\mathrm{Lk}(#1)}
+\renewcommand{\Vert}[1]{\mathrm{Vert}(#1)}
+\newcommand{\Edges}[1]{\mathrm{Edges}(#1)}
+\newcommand{\Cl}[1]{\overline{#1}}
+
+\addbibresource{bibliography.bib}

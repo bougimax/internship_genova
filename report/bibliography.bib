@@ -1,0 +1,76 @@
+@inproceedings{chew:cdt,
+author = {Chew, L. P.},
+title = {Constrained Delaunay triangulations},
+year = {1987},
+isbn = {0897912314},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/41958.41981},
+doi = {10.1145/41958.41981},
+abstract = {Given a set of n vertices in the plane together with a set of noncrossing edges, the constrained Delaunay triangulation (CDT) is the triangulation of the vertices with the following properties: (1) the prespecified edges are included in the triangulation, and (2) it is as close as possible to the Delaunay triangulation. We show that the CDT can be built in optimal Ο(n log n) time using a divide-and-conquer technique. This matches the time required to build an arbitrary (unconstrained) Delaunay triangulation and the time required to build an arbitrary constrained (nonDelaunay) triangulation. CDTs, because of their relationship with Delaunay triangulations, have a number of properties that should make them useful for the finite-element method. Applications also include motion planning in the presence of polygonal obstacles in the plane and constrained Euclidean minimum spanning trees, spanning trees subject to the restriction that some edges are prespecified.},
+booktitle = {Proceedings of the Third Annual Symposium on Computational Geometry},
+pages = {215–222},
+numpages = {8},
+location = {Waterloo, Ontario, Canada},
+series = {SCG '87}
+}
+
+@article{hu:tetwild,
+author = {Hu, Yixin and Zhou, Qingnan and Gao, Xifeng and Jacobson, Alec and Zorin, Denis and Panozzo, Daniele},
+title = {Tetrahedral meshing in the wild},
+year = {2018},
+issue_date = {August 2018},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {37},
+number = {4},
+issn = {0730-0301},
+url = {https://doi.org/10.1145/3197517.3201353},
+doi = {10.1145/3197517.3201353},
+abstract = {We propose a novel tetrahedral meshing technique that is unconditionally robust, requires no user interaction, and can directly convert a triangle soup into an analysis-ready volumetric mesh. The approach is based on several core principles: (1) initial mesh construction based on a fully robust, yet efficient, filtered exact computation (2) explicit (automatic or user-defined) tolerancing of the mesh relative to the surface input (3) iterative mesh improvement with guarantees, at every step, of the output validity. The quality of the resulting mesh is a direct function of the target mesh size and allowed tolerance: increasing allowed deviation from the initial mesh and decreasing the target edge length both lead to higher mesh quality.Our approach enables "black-box" analysis, i.e. it allows to automatically solve partial differential equations on geometrical models available in the wild, offering a robustness and reliability comparable to, e.g., image processing algorithms, opening the door to automatic, large scale processing of real-world geometric data.},
+journal = {ACM Trans. Graph.},
+month = jul,
+articleno = {60},
+numpages = {14},
+keywords = {mesh generation, robust geometry processing, tetrahedral meshing}
+}
+
+@book{cgal:eb-24b,
+  title = {{CGAL} User and Reference Manual},
+  author = {{The CGAL Project}},
+  publisher = {{CGAL Editorial Board}},
+  edition = {{6.0.1}},
+  year = 2024,
+  url = {https://doc.cgal.org/6.0.1/Manual/packages.html}
+}
+
+
+@misc{diazzi:cdt,
+      title={Constrained Delaunay Tetrahedrization: A Robust and Practical Approach}, 
+      author={Lorenzo Diazzi and Daniele Panozzo and Amir Vaxman and Marco Attene},
+      year={2023},
+      eprint={2309.09805},
+      archivePrefix={arXiv},
+      primaryClass={cs.CG},
+      url={https://arxiv.org/abs/2309.09805}, 
+}
+
+@article{si:tetgen,
+author = {Si, Hang},
+title = {TetGen, a Delaunay-Based Quality Tetrahedral Mesh Generator},
+year = {2015},
+issue_date = {January 2015},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {41},
+number = {2},
+issn = {0098-3500},
+url = {https://doi.org/10.1145/2629697},
+doi = {10.1145/2629697},
+abstract = {TetGen is a C++ program for generating good quality tetrahedral meshes aimed to support numerical methods and scientific computing. The problem of quality tetrahedral mesh generation is challenged by many theoretical and practical issues. TetGen uses Delaunay-based algorithms which have theoretical guarantee of correctness. It can robustly handle arbitrary complex 3D geometries and is fast in practice. The source code of TetGen is freely available.This article presents the essential algorithms and techniques used to develop TetGen. The intended audience are researchers or developers in mesh generation or other related areas. It describes the key software components of TetGen, including an efficient tetrahedral mesh data structure, a set of enhanced local mesh operations (combination of flips and edge removal), and filtered exact geometric predicates. The essential algorithms include incremental Delaunay algorithms for inserting vertices, constrained Delaunay algorithms for inserting constraints (edges and triangles), a new edge recovery algorithm for recovering constraints, and a new constrained Delaunay refinement algorithm for adaptive quality tetrahedral mesh generation. Experimental examples as well as comparisons with other softwares are presented.},
+journal = {ACM Trans. Math. Softw.},
+month = feb,
+articleno = {11},
+numpages = {36},
+keywords = {mesh refinement, mesh quality, mesh improvement, flips, edge removal, constrained Delaunay, boundary recovery, Tetrahedral mesh generation, Steiner points, Delaunay}
+}

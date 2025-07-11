@@ -1,0 +1,27 @@
+\begin{figure}[!htb]
+    \centering
+    \tdplotsetmaincoords{45}{30} % view angle
+    \begin{tikzpicture}[tdplot_main_coords, scale=3]
+
+      % Vertices
+      \coordinate (A) at (0,0,0);
+      \coordinate (B) at (1,0,0);
+      \coordinate (C) at (0.5,0.1,0.5); 
+      \coordinate (D) at (0.5,0.1,-0.5);
+
+      % Edges
+      \filldraw[black!7] (A) -- (D) -- (C);
+      \filldraw[black!2] (B) -- (D) -- (C);
+      \draw[thick, line cap=round] (A) -- (B);
+      \draw[thick, line cap=round] (A) -- (C);
+      \draw[thick, line cap=round] (A) -- (D);
+      \draw[thick, line cap=round] (B) -- (C);
+      \draw[thick, line cap=round] (B) -- (D);
+      \draw[dashed, line cap=round] (C) -- (D);
+
+      % Points
+
+    \end{tikzpicture}
+    \caption{Example of sliver} 
+    \label{fig:sliver}
+\end{figure}

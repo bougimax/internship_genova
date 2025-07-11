@@ -1,0 +1,107 @@
+\begin{figure}[!htb]
+	\centering
+
+	\tdplotsetmaincoords{60}{15} % view angle
+	\begin{tikzpicture}[tdplot_main_coords, scale=1]
+
+		% Vertices
+		\coordinate (1) at (0,0,0);
+		\coordinate (2) at (1,0,0);
+		\coordinate (3) at (1,0,4);
+		\coordinate (4) at (0,0,4);
+		\coordinate (5) at (0,4,0);
+		\coordinate (6) at (5,4,0);
+		\coordinate (7) at (1,4,4);
+		\coordinate (8) at (0,4,4);
+		\coordinate (9) at (2,0,4);
+		\coordinate (10) at (2,4,4);
+		\coordinate (11) at (2,0,3);
+		\coordinate (12) at (2,4,3);
+		\coordinate (13) at (2,0,1);
+		\coordinate (14) at (2,4,1);
+		\coordinate (15) at (3,0,2);
+		\coordinate (16) at (3,4,2);
+		\coordinate (17) at (4,0,2);
+		\coordinate (18) at (4,4,2);
+		\coordinate (19) at (4,0,1);
+		\coordinate (20) at (4,4,1);
+		\coordinate (21) at (5,0,0);
+		\coordinate (22) at (6,0,1);
+		\coordinate (23) at (6,4,1);
+		\coordinate (24) at (5,0,3);
+		\coordinate (25) at (5,4,3);
+		\coordinate (26) at (7,0,1);
+		\coordinate (27) at (7,4,1);
+		\coordinate (28) at (8,0,0);
+		\coordinate (29) at (8,4,0);
+		\coordinate (30) at (7,0,3);
+		\coordinate (31) at (7,4,3);
+		\coordinate (32) at (7,4,2.5);
+		\coordinate (33) at (5,4,2.5);
+		\coordinate (24p) at (5,0,2.5);
+		\coordinate (30p) at (7,0,2.5);
+		\coordinate (34) at (9,0,0);
+		\coordinate (35) at (9,4,0);
+		\coordinate (36) at (9,0,3);
+		\coordinate (37) at (9,4,3);
+		\coordinate (38) at (10,0,0);
+		\coordinate (39) at (10,4,0);
+		\coordinate (40) at (9,-3,3);
+		\coordinate (41) at (6,0,0);
+		\coordinate (42) at (7,0,0);
+
+		% Edges
+		\draw[thick, line cap=round] (1) -- (2) -- (3) -- (4) -- cycle;
+		\draw[thick, line cap=round, fill=black!30] (2) -- (21) -- (22) -- (26) -- (28) -- (34) -- (36) -- (30) -- (30p) -- (24p) -- (24) -- (11) -- (9) -- (3) -- cycle;
+		\draw[thick, line cap=round, fill=white] (13) -- (15) -- (17) -- (19) -- cycle;
+		\draw[thick, line cap=round] (3) -- (9) -- (10) -- (7) -- cycle;
+		\draw[thick, line cap=round, fill=black!30] (3) -- (4) -- (8) -- (7) -- cycle;
+		\draw[thick, line cap=round, fill=black!30] (36) -- (38) -- (39) -- (37) -- cycle;
+		\draw[thick, line cap=round] (10) -- (12) -- (25) -- (33) -- (32) -- (31) -- (37);
+		\draw[thick, line cap=round] (8) -- (7);
+		\draw[thick, line cap=round] (10) -- (12);
+		\draw[thick, line cap=round] (11) -- (9);
+		\draw[thick, line cap=round] (11) -- (12);
+		\draw[thick, line cap=round] (8) -- (4);
+		\draw[thick, line cap=round] (2) -- (21);
+		\draw[thick, line cap=round] (11) -- (24);
+		\draw[thick, line cap=round] (12) -- (25);
+		\draw[thick, line cap=round] (21) -- (22);
+		\draw[thick, line cap=round] (24) -- (25);
+		\draw[thick, line cap=round] (24p) -- (33);
+		\draw[thick, line cap=round] (30) -- (31);
+		\draw[thick, line cap=round] (36) -- (37);
+		\draw[thick, line cap=round] (38) -- (39);
+		\draw[thick, line cap=round] (37) -- (39);
+		\draw[thick, line cap=round] (34) -- (38) -- (36);
+		\draw[thick, line cap=round] (34) -- (40);
+		\draw[thick, line cap=round] (41) -- (42);
+		\draw[dashed, line cap=round] (5) -- (8);
+		\draw[dashed, line cap=round] (5) -- (6);
+		\draw[dashed, line cap=round] (5) -- (1);
+		\draw[dashed, line cap=round] (14) -- (16) -- (18) -- (20) -- cycle;
+		\draw[dashed, line cap=round] (5) -- (6) -- (23) -- (27) -- (29) -- (35) -- (37);
+		\draw[dashed, line cap=round] (13) -- (14);
+		\draw[dashed, line cap=round] (15) -- (16);
+		\draw[dashed, line cap=round] (17) -- (18);
+		\draw[dashed, line cap=round] (19) -- (20);
+		\draw[dashed, line cap=round] (34) -- (35);
+		\draw[dashed, line cap=round] (28) -- (29);
+		\draw[dashed, line cap=round] (26) -- (27);
+		\draw[dashed, line cap=round] (22) -- (23);
+		\draw[dashed, line cap=round] (21) -- (6);
+		\draw[dashed, line cap=round] (6) -- (23);
+		\draw[dashed, line cap=round] (30p) -- (32);
+		\draw[dashed, line cap=round] (35) -- (39);
+
+		% Points
+		\foreach \i in {1, ..., 42}
+		\filldraw[black] (\i) circle (2pt);
+
+
+	\end{tikzpicture}
+
+	\caption{Example of PLC} \label{fig:PLC}
+
+\end{figure}
+

@@ -1,277 +1,331 @@
-\documentclass{article}
+\documentclass[11pt]{article}
 \usepackage{report}
+
 \title{Internship report}
 \author{Max Royer}
 \date{\today}
+
 \begin{document}
-\maketitle
+
+\input{title\_page}
 
 \section{Introduction}
 
-The objective of this internship was to design and validate a greedy algorithm for refining Constrained Delaunay Tetrahedrizations (CDTs).
+This report is here to wrap up my internship at the \emph{CNR IMATI} in Genova, Italia. It was a pleasure to
+share those three months with Marco, Marco and the team (where there is 3 others Marco)!
 
-CDTs are commonly used in physics-based simulations such as the finite element method. However, these simulations require high-quality meshes, which raw CDTs often fail to provide. Therefore, a refinement process is essential to improve the overall mesh quality and ensure the robustness and accuracy of the simulations.
+My internship domain was computational geometry, the domain both Marco Attene and Marco Livesu are working on.
+Recently Lorenzo Diazzi, Marco A. et al published an article \cite{diazzi:cdt} talking about constrained
+Delaunay tetrahedrization. So far they had produced the robust tetrahedrization pipeline, using robust
+geometric predicates developped by Marco Attene. But they still lacked of a refinement process for the
+tetrahedrized output that other known software like TetGen \cite{si:tetgen}, or CGAL \cite{cgal:eb-24b}.
+
+Constrained Delaunay tetrahedrization (CDT) have a wide range of applications, they are commonly used in
+physics-based simulations such as the finite element method, solutions of partial differential equations or
+raytracing. However, these simulations and applications require high-quality meshes, which raw CDTs often fail
+to provide. Therefore, a refinement process is essential to improve the overall mesh quality and ensure the
+robustness and accuracy of the simulations.
+
+The objective of this internship was to design and validate a greedy algorithm for refining Constrained
+Delaunay Tetrahedrizations (CDTs). We majorly gathered inspiration from the article \cite{hu:tetwild} that was
+already proposing a refinement process but in their case they were authorizing themselves to deform the input
+(\emph{i.e.} move input vertices in a small radius sphere). However in our case our constraints are strict,
+which means that we cannot remove a input vertex or change the geometry of the faces. We are only allowed to
+add vertices, which may lay on the surface of the model only if they do not change the original surface
+geometry.
+
+The plan of this report is to first present some preliminaries and the state of the art, then to present the
+refinement process and finally to compare it with other ones that already exists.
 
 \section{Preliminary}
 
-\subsection{Delaunay's triangulation}
-
 \subsection{Piecewise Linear Complex}
 
-\subsection{Constrained Delaunay Triangulation}
+To modelize any 3D model, polyhedra are often not enough to describe well the model (for example if the model
+have holes is not connected). This is why it's important to introduce Piecewise Linear Complex which have
+been.
+
+\begin{definition}[Piecewise Linear Complex]
+
+	A Piecewise Linear Complex (PLC) $X$ is a finite set of vertices, segments and facets of $\R^3$. A facet
+	$f$ is a polygonal region that can have holes and any number of sides, and so is not necessarly convex.
+	Then $X$ must respect those two rules:
+
+	\begin{itemize}
+
+		\item $X$ must be closed by intersection, it means that when intersecting two elements of $X$ the
+		      intersection is either empty or is an element of $X$.
+
+		\item Every facet of $X$ must be planar.
+
+	\end{itemize}
+
+\end{definition}
+
+Here is an example of PLC in figure \ref{fig:PLC}.
+
+\input{tikz/example\_PLC}
+
+\subsection{Delaunay's triangulation}
+
+\begin{definition}[Simplex]
+
+	A simplex $\sigma$ of dimension $d$ is the convex hull of $\left(v_0, v_1, \cdots, v_d\right)$ points of
+	$\R^{n}$, such that $(v_1 - v_0, \cdots, v_d - v_0)$ are linearly independant. The $v_{i}$'s are called
+	the vertices of $\sigma$, and we say that $\sigma$ is spanned by $V := \left\{v_0, \cdots, v_d \right\}$.
+	A face of $\sigma$ is a simplex spanned by a subset of $V$, we denote the fact that $\tau$ is a face of
+	$\sigma$ by writing $\tau\leq\sigma$.
+
+\end{definition}
+
+\begin{remark}
+
+	In dimension 1 a simplex is an segment, in dimension 2 it's a triangle and in dimension 3 it's a tetrahedra.
+
+\end{remark}
+
+\begin{definition}[Simplicial complex]
+
+	Let $K$ be a set of simplices, we say that $K$ is a simplicial complex if:
+
+	\begin{itemize}
+
+		\item If $\sigma\in K$ then for all $\tau$ such that $\tau\leq\sigma$ we have $\tau\in K$.
+
+		\item Let $\sigma, \sigma'\in K$ then $\sigma\cap\sigma'$ is either empty or a face of both.
+
+	\end{itemize}
+
+\end{definition}
+
+\begin{definition}
+
+	Let $K$ be a simplicial complex, and let $B\subseteq K$:
+
+	\begin{itemize}
+
+		\item The \emph{closure} of $B$ is : $$\Cl{B} := \left\{\tau\in K\; |\; \exists\sigma\in B,
+			      \tau\leq\sigma\right\}$$
+
+		\item The \emph{start} of $B$ is : $$\St{B} := \left\{\sigma\in K\; |\; \exists\tau\in B,
+			      \tau\leq\sigma\right\}$$
+
+		\item The \emph{link} of $B$ is : $$\Lk{B} := \Cl{\St{B}} \backslash \St{\Cl{B}}$$
+
+		\item The \emph{vertices} of $B$ are : $$\Vert{B} := \left\{v\in B\;|\; \dim v = 0\right\}$$ and the
+		      \emph{edges} of $B$ are : $$\Edges{B} := \left\{e\in B\;|\; \dim e = 1\right\}$$
+
+	\end{itemize}
+
+\end{definition}
+
+\begin{definition}[Delaunay triangulation]
+
+	For $P\subseteq\R^{d}$, a valid Delaunay triangulation is a set $\DT{P}$ of $d$-dimensional simplices such
+	that for all $\sigma\in\DT{P}$, there is no other points than the vertices that span $\sigma$ that are in
+	the \emph{circum-hypersphere} of $\sigma$. The later condition is often denoted as the Delaunay condition.
+
+\end{definition}
+
+\begin{remark}
+
+	In our case we'll only focus on dimension 3, in this case a Delaunay tetrahedrisation exists and is
+	guaranteed to be unique if and only if the points are non coplanar and if there doesn't exist 5 points
+	that are cospherical.
+
+\end{remark}
+
+\subsection{Constrained Delaunay tetrahedrisation}
+
+\begin{definition}[Visible vertex]
+
+	Let $t$ be a tetrahedra, a vertex $v$ is said to be visible from $t$ if for any vertices of $t$ one can
+	draw a segment between it and $v$ without intersecting $t$.
+
+\end{definition}
+
+In the figure \ref{fig:visibleVertex} $v$ is visible whereas $w$ is not because one the segment connecting to
+a vertex is intersecting the tetrahedra on the thick dotted part.
+
+\input{tikz/example\_visible\_vertex}
+
+In our specific case we are more interested by the Constrained Delaunay Triangulation (CDT) \cite{chew:cdt}.
+Indeed for example a polygon it's often that the Delaunay tetrahedrisation of his vertices does not includes
+all the sides of the polygon. This is why the constrained Delaunay Triangulation exists, it's to force the so
+called constrained Delaunay tetrahedrisations to contain some prescribed edges while maintaining \emph{as much
+	as possible} the Delaunay condition.
+
+\begin{definition}[Constrained Delaunay tetrahedrisation]
+
+	Given a graph $G := (V, E)$ composed of vertices $V\subseteq\R^3$ and edges $E$, a valid constrained
+	Delaunay tetrahedrisation $\DT{G}$ is a set of tetrahedras such that:
+
+	\begin{itemize}
+
+		\item All vertices connected by an edge in $G$ are also connected in at least one of the tetrahedras
+		      of $\DT{G}$
+
+		\item For all tetrahedras $t$ of $\DT{G}$ there is not another vertex $v$ that is visible from $t$ in
+		      the circum-sphere of $t$.
+	\end{itemize}
+
+\end{definition}
+
+\begin{remark}
+
+	The obtained constrained Delaunay tetrahedrisation is a simplicial complex.
+
+\end{remark}
 
 \subsection{Quality Measure}
 
+To measure the quality of our refinement we need a quality measure. A good quality measure should be minimized
+on \emph{well-shaped} tetrahedras and becomes really big on \emph{bad-shaped} tetrahedras. Typically a
+\emph{well-shaped} tetrahedra would be one close to be a regular tetrahedra, whereas the \emph{bad-shaped}
+ones are typically slivers which are very flat tetrahedras that appears in constrained and unconstrained
+Delaunay tetrahedrisation (see on figure \ref{fig:sliver}) or the ones with very acute angle.
+
+\input{tikz/example\_sliver}
+
+In our implementation we choosed to use the Dirichlet energy because it's assigning 3 to a regular tetrahedra,
+is not upper bounded and assigns very high value to slivers.
+
+\begin{definition}[Edge matrix]
+
+	Let $t$ be a tetrahedra composed of vertices $(\mathbf{x}_i)_{0\leq i\leq 3}\in\R^{3}$, the edge matrix of
+	$t$ is defined to be:
+
+	$$T := \biggl( \mathbf{x}_1 - \mathbf{x}_0\quad \mathbf{x}_2 - \mathbf{x}_0\quad \mathbf{x}_3 -
+		\mathbf{x}_0\biggr)$$
+
+\end{definition}
+
+\begin{remark}
+
+	This definition of the edge matrix is invariant by translation.
+
+\end{remark}
+
+\begin{definition}[Tetrahedra deformation]
+
+	Let $t$ be a tetrahedra and $r$ another one that you want to deform $t$ to, let $T$ and respectively $R$
+	be the associated edge matrix. We define the deformation matrix to be:
+
+	$$D := TR^{-1}$$
+
+\end{definition}
+
+\begin{definition}[Dirichlet energy]
+
+	Let $t$ be a tetrahedra and $J$ be the deformation matrix when we deform $t$ to the regular tetrahedra of
+	side 1. We define the Dirichlet energy to be:
+
+	$$\mathcal{E}(t) := \frac{\Tr{JJ^{t}}}{\det(J)^{\frac{2}{3}}}$$
+
+\end{definition}
+
+\begin{remark}
+
+	The definition of this energy makes it so that it's invariant by rotation of $t$ and of the regulart
+	tetrahedra chosen, this is why we say \emph{the} regular tetrahedra of side 1.
+
+\end{remark}
+
+\begin{remark}
+
+	One may wonder if the order of the vertices in the input tetrahedra $t$ is important, the answer is that
+	as soon as the tetrahedra is well-oriented the order does not change the result (hopefully). If the
+	tetrahedra is badly-oriented the determinant at the denominator will be negative and so we just return the
+	maximum value because it's out of definition for $\frac{2}{3}$ exponent.
+
+\end{remark}
+
+\section{State of the art}
+
+Right now the state of the art is mainly composed of two things. First there is TetGen who is doing a
+refinement process at the end of their tetrahedrisation. The thing is that TetGen fails on certain model of
+the Thingi10k 3D model set that we'll take as reference for the rest of the report. It's a free dataset
+composed of more than 4.000 various 3D models.
+
+\section{The algorithm}
+
+The algorithm is composed of several local operations that I will detail in the following. The main function
+is a full pass, which means it makes all the different local operations pass in a row. Then one can choose to
+only run this optimization pass a fixed number of times or to let it run until convergence (until no
+operations can be applied on the mesh).
+
+The process for each individual operation pass is quite the same for all of them. First we compute the effect
+that the operation would have on each element of the mesh. This pre-computation in a sort simulate the effect
+that the local operation would have on this element and then return firstly if the operation is feasible (it
+could not be the case if the operation breaks the topology for example) and also if the operation is
+decreasing the quality measure in the local footprint of the operation.
+
+This pre-computation yields us a queue of feasible operation, which we'll process in the following manner. Pop
+an element that is benefic to apply the operation on, apply the transformation, compute the other elements
+impacted by the operation and recompute the effect the same operation would have on them and add or remove
+those element of the queue accordingly.
+
+The difficult part are often to know if the operation will break the topology, and to know which element are
+impacted by a local operation.
+
+\subsection{Edge split}
+
+The edge split as the name suggests is the fact to add a new vertex to an edge and then arrange the geometry
+accordingly. For this operation we do not have to worry about the fact that it could break the topology
+because it cannot. Then when splitting an edge $(u,v)$ by adding a vertex $w$ in the middle, the impacted
+edges are:
+
+$$E := \Edges{\Cl{\St{\left\{(u,w)\right\}}}}\cup\Edges{\Cl{\St{\left\{(w,v)\right\}}}}$$
+
+Which are the union of all the edges of all the tetrahedras incident to either $(u,w)$ or $(w,v)$.
+
+% $$\left\{e\text{ an edge}\ |\ \exists t\text{ a tetrahedra},\, e<t \text{ and }
+% 	\left((u,w)<t\text{ or }(v,w)<t\right)\right\}$$
+
+Here is an example of an edge split in the figure \ref{fig:splitEdge}.
+
+\input{tikz/example\_split}
+
+\subsection{Edge collapse}
+
+The edge collapse may be one of the hardest operation to approach. The fact to collapse an edge $(u,v)$ on $u$
+for example is just take all the edges incident to $v$ and to change $v$ in $u$. In this way the vertex $v$ is
+removed along with all the tetrahedras incident to the edge $(u,v)$.
+
+The difficulty of this operation is to prevent topological break. Firstly the vertex or the edge that we are
+going to remove should not be on the boundary of the model. Then the principal condition to ensure to not
+break the topology is the link condition for collapsing $(u,v)$:
+
+$$\Lk{\left\{(u,v)\right\}} = \Lk{\left\{u\right\}} \cap \Lk{\left\{v\right\}}$$
+
+If this condition is not respected then the collapsing can't be made. In a second time when collapsing the
+edge $(u,v)$ on $u$ the removed edges are:
+
+$$R := \Edges{\St{\left\{v\right\}}}$$
+
+and the edges to update are:
+
+$$E := TODO$$
+
+Here is an example of collapse in figure \ref{fig:collapseEdge}.
+
+\input{tikz/example\_collapse}
+
+\subsection{Edge swap}
+
+\subsection{Face swap}
+
+\subsection{Vertex smoothing}
+
+\subsection{Tetrahedra collapse}
+
+% \input{tikz/regular\_tetrahedra}
+%
+% \input{tikz/example\_swap\_face}
+
 \newpage
 
-% Regular tetrahedra
-\tdplotsetmaincoords{70}{45} % view angle
-\begin{tikzpicture}[tdplot_main_coords, scale=3]
-
-  % Vertices
-  \coordinate (A) at (0,0,0);
-  \coordinate (B) at (1,0,0);
-  \coordinate (C) at (0.5,0.866,0); % equilateral basis
-  \coordinate (D) at (0.5,0.2887,0.8165);
-
-  % Edges
-  \draw[thick, line cap=round] (A) -- (D);
-  \draw[thick, line cap=round] (B) -- (D);
-  \draw[thick, line cap=round] (C) -- (D);
-  \draw[thick, line cap=round] (A) -- (B);
-  \draw[thick, line cap=round] (B) -- (C);
-  \draw[dashed, line cap=round] (C) -- (A);
-
-  % Points
-  \draw (A) node[anchor=north east] {A};
-  \draw (B) node[anchor=north east] {B};
-  \draw (C) node[anchor=north west] {C};
-  \draw (D) node[anchor=south west] {D};
-
-\end{tikzpicture}
-
-% Splitted tetrahedra
-\tdplotsetmaincoords{70}{45} % view angle
-\begin{tikzpicture}[tdplot_main_coords, scale=3]
-
-  % Vertices
-  \coordinate (A) at (0,0,0);
-  \coordinate (B) at (1,0,0);
-  \coordinate (C) at (0.5,0.866,0); % equilateral basis
-  \coordinate (D) at (0.5,0.2887,0.8165);
-  \coordinate (E) at (0.5,0,0);
-
-  % Edges
-  \draw[thick, line cap=round] (A) -- (D);
-  \draw[thick, line cap=round] (B) -- (D);
-  \draw[thick, line cap=round] (C) -- (D);
-  \draw[thick, line cap=round] (A) -- (B);
-  \draw[thick, line cap=round] (B) -- (C);
-  \draw[dashed, line cap=round] (C) -- (A);
-  \draw[thick, line cap=round, draw=red] (E) -- (D);
-  \draw[dashed, line cap=round, draw=red] (E) -- (C);
-
-  % Points
-  \draw (A) node[anchor=north east] {A};
-  \draw (B) node[anchor=north east] {B};
-  \draw (C) node[anchor=north west] {C};
-  \draw (D) node[anchor=south west] {D};
-  \draw (E) node[anchor=north east] {M};
-
-\end{tikzpicture}
-
-% Edge collapse before
-\tdplotsetmaincoords{70}{45} % view angle
-\begin{tikzpicture}[tdplot_main_coords, scale=3]
-
-  % Vertices
-  \coordinate (A) at (0,0,0);
-  \coordinate (B) at (1,0,0);
-  \coordinate (C) at (0.5,0.866,0); % equilateral basis
-  \coordinate (D) at (0.5,0.2887,0.8165);
-  \coordinate (E) at (1.4,0.4,0.55);
-  \coordinate (F) at (-0.4,0.4,0.55);
-
-  % Edges
-  \draw[thick, line cap=round] (A) -- (D);
-  \draw[thick, line cap=round] (A) -- (F);
-  \draw[thick, line cap=round] (D) -- (F);
-  \draw[thick, line cap=round] (B) -- (D);
-  \draw[dashed, line cap=round] (C) -- (D);
-  \draw[thick, line cap=round, draw=red] (A) -- (B);
-  \draw[dashed, line cap=round] (B) -- (C);
-  \draw[thick, line cap=round] (B) -- (E);
-  \draw[dashed, line cap=round] (C) -- (E);
-  \draw[dashed, line cap=round] (C) -- (F);
-  \draw[thick, line cap=round] (D) -- (E);
-  \draw[dashed, line cap=round] (C) -- (A);
-
-  % Points
-  \draw (A) node[anchor=north east] {A};
-  \draw (B) node[anchor=north east] {B};
-  \draw (C) node[anchor=north west] {C};
-  \draw (D) node[anchor=south west] {D};
-  \draw (E) node[anchor=south west] {E};
-  \draw (F) node[anchor=south east] {F};
-
-\end{tikzpicture}
-
-% Edge collapse after
-\tdplotsetmaincoords{70}{50} % view angle
-\begin{tikzpicture}[tdplot_main_coords, scale=3]
-
-  % Vertices
-  \coordinate (A) at (0,0,0);
-  \coordinate (C) at (0.5,0.866,0); % equilateral basis
-  \coordinate (D) at (0.5,0.2887,0.8165);
-  \coordinate (E) at (1.4,0.4,0.55);
-  \coordinate (F) at (-0.4,0.4,0.55);
-
-  % Edges
-  \draw[thick, line cap=round] (A) -- (D);
-  \draw[thick, line cap=round] (A) -- (F);
-  \draw[thick, line cap=round] (D) -- (F);
-  \draw[dashed, line cap=round] (C) -- (D);
-  \draw[thick, line cap=round] (A) -- (E);
-  \draw[thick, line cap=round] (C) -- (E);
-  \draw[dashed, line cap=round] (C) -- (F);
-  \draw[thick, line cap=round] (D) -- (E);
-  \draw[thick, line cap=round] (C) -- (A);
-
-  % Points
-  \draw (A) node[anchor=north east] {A};
-  \draw (C) node[anchor=north west] {C};
-  \draw (D) node[anchor=south west] {D};
-  \draw (E) node[anchor=south west] {E};
-  \draw (F) node[anchor=south east] {F};
-
-\end{tikzpicture}
-
-% Face swap before
-\tdplotsetmaincoords{55}{30} % view angle
-\begin{tikzpicture}[tdplot_main_coords, scale=3]
-
-  % Vertices
-  \coordinate (A2) at (0.1,-0.5,0);
-  \coordinate (A1) at (-0.1,-0.5,0);
-  \coordinate (B2) at (0.1,0.5,0);
-  \coordinate (B1) at (-0.1,0.5,0);
-  \coordinate (C2) at (0.1,0,1);
-  \coordinate (C1) at (-0.1,0,1);
-  \coordinate (D1) at (-1,0,0.5);
-  \coordinate (D2) at (1,0,0.5);
-
-  % Faces
-  \draw[thick, rounded corners=1pt, fill=blue!30] (A1) -- (B1) -- (D1) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=blue!30] (B1) -- (C1) -- (D1) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=blue!30] (A1) -- (C1) -- (D1) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=blue!30] (A1) -- (B1) -- (C1) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=red!30] (A2) -- (B2) -- (C2) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=red!30] (A2) -- (B2) -- (D2) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=red!30] (D2) -- (B2) -- (C2) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=red!30] (A2) -- (D2) -- (C2) -- cycle;
-
-  % Edges
-  \draw[dashed, line cap=round] (D1) -- (B1);
-  \draw[dashed, line cap=round] (C1) -- (B1);
-  \draw[dashed, line cap=round] (A1) -- (B1);
-  \draw[dashed, line cap=round] (A2) -- (B2);
-  \draw[dashed, line cap=round] (C2) -- (B2);
-  \draw[dashed, line cap=round] (D2) -- (B2);
-
-  % % Points
-  \draw (A1) node[anchor=north west] {A};
-  \draw (B2) node[anchor=south east] {B};
-  \draw (C1) node[anchor=south west] {C};
-  \draw (D1) node[anchor=south west] {D};
-  \draw (D2) node[anchor=south west] {E};
-
-\end{tikzpicture}
-
-% Face swap after
-\tdplotsetmaincoords{55}{30} % view angle
-\begin{tikzpicture}[tdplot_main_coords, scale=3]
-
-  % Vertices
-  \coordinate (A1) at (0,-0.5,-0.05);
-  \coordinate (A3) at (0,-0.5,0.05);
-  \coordinate (B1) at (0,0.5,-0.05);
-  \coordinate (B2) at (0,0.5,0.05);
-  \coordinate (C2) at (0,0.05,1);
-  \coordinate (C3) at (0,-0.05,1);
-  \coordinate (D3) at (-1,-0.1,0.45);
-  \coordinate (D2) at (-1,0.1,0.45);
-  \coordinate (D1) at (-1,0,0.25);
-  \coordinate (E3) at (1,-0.1,0.45);
-  \coordinate (E2) at (1,0.1,0.45);
-  \coordinate (E1) at (1,0,0.25);
-
-  % Faces
-  \draw[thick, rounded corners=1pt, fill=blue!30] (A1) -- (B1) -- (E1) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=blue!30] (A1) -- (D1) -- (B1) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=blue!30] (A1) -- (D1) -- (E1) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=blue!30] (B1) -- (D1) -- (E1) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=red!30] (C2) -- (B2) -- (E2) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=red!30] (C2) -- (D2) -- (B2) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=red!30] (C2) -- (D2) -- (E2) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=red!30] (B2) -- (D2) -- (E2) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=green!30] (C3) -- (D3) -- (E3) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=green!30] (A3) -- (D3) -- (E3) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=green!30] (C3) -- (A3) -- (E3) -- cycle;
-  \draw[thick, rounded corners=1pt, fill=green!30] (C3) -- (D3) -- (A3) -- cycle;
-
-  % Edges
-  \draw[dashed, line cap=round] (D1) -- (E1);
-  \draw[dashed, line cap=round] (D2) -- (E2);
-  \draw[dashed, line cap=round] (D3) -- (E3);
-  % \draw[dashed, line cap=round] (C2) -- (B2);
-  % \draw[dashed, line cap=round] (E2) -- (B2);
-  % \draw[dashed, line cap=round] (D2) -- (B2);
-  % \draw[dashed, line cap=round] (A1) -- (B1);
-  % \draw[dashed, line cap=round] (D1) -- (B1);
-  % \draw[dashed, line cap=round] (E1) -- (B1);
-
-  % % Points
-  \draw (A1) node[anchor=north west] {A};
-  \draw (B1) node[anchor=north west] {B};
-  \draw (C3) node[anchor=south west] {C};
-  \draw (D1) node[anchor=south east] {D};
-  \draw (E1) node[anchor=south west] {E};
-
-\end{tikzpicture}
-
-% Face swap after
-\tdplotsetmaincoords{70}{50} % view angle
-\begin{tikzpicture}[tdplot_main_coords, scale=3]
-
-  % Vertices
-  \coordinate (A) at (0,0,0);
-  \coordinate (C) at (0.5,0.866,0); % equilateral basis
-  \coordinate (D) at (0.5,0.3887,0.8165);
-  \coordinate (E) at (1.4,0.4,0.55);
-  \coordinate (F) at (-0.4,0.4,0.55);
-
-  % Edges
-  \draw[thick, line cap=round] (A) -- (D);
-  \draw[thick, line cap=round] (A) -- (F);
-  \draw[thick, line cap=round] (D) -- (F);
-  \draw[dashed, line cap=round] (C) -- (D);
-  \draw[thick, line cap=round] (A) -- (E);
-  \draw[thick, line cap=round] (C) -- (E);
-  \draw[dashed, line cap=round] (C) -- (F);
-  \draw[dashed, line cap=round] (E) -- (F);
-  \draw[thick, line cap=round] (D) -- (E);
-  \draw[thick, line cap=round] (C) -- (A);
-
-  % Points
-  \draw (A) node[anchor=north east] {A};
-  \draw (C) node[anchor=north west] {C};
-  \draw (D) node[anchor=south west] {D};
-  \draw (E) node[anchor=south west] {E};
-  \draw (F) node[anchor=south east] {F};
-
-\end{tikzpicture}
-
+\printbibliography
 
 \end{document}
 
