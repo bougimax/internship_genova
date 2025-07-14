@@ -16,6 +16,9 @@ build/
 *.blg
 *.out
 *.run.xml
+*.nav
+*.snm
+*.toc
 
 # Polyscope
 

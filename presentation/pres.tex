@@ -1,15 +1,128 @@
-\documentclass[14pt]{beamer}       
+\documentclass{beamer}       
 \usepackage{pres}
 
-\title{Title}
-\subtitle{}
-
+\title{Constrained Delaunay tetrahedrisation refinement}
 \author{Royer Max}
-
-\date{\today}
+\institute{CNR IMATI}
+\date{July 22, 2025}
 
 \begin{document}
-\maketitle
+
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}
+	\frametitle{Outline}
+	\tableofcontents
+\end{frame}
+
+\section{Introduction}
+\subsection{Who am I?}
+\begin{frame}
+	\frametitle{Quick presentation}
+	\begin{columns}
+
+		\column{0.4\textwidth}
+		\begin{itemize}
+
+			\item Max Royer
+			\item ENS of Lyon
+			\item End of first year of master
+			\item Internship for 3 months
+
+		\end{itemize}
+
+		\column{0.6\textwidth}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\textwidth]{ragu}
+			\caption{A ragu I made in Genova}\label{fig:ragu}
+		\end{figure}
+	\end{columns}
+\end{frame}
+
+\subsection{Constrained Delaunay tetrahedrisation}
+\begin{frame}
+	\frametitle{Delaunay triangulation}
+	\input{tikz/example\_delaunay\_timed}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Delaunay condition}
+	\input{tikz/delaunay\_condition\_timed}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Let's add some constraints}
+	\input{tikz/constrained\_delaunay\_timed}
+	\centering
+	\onslide<5>{\emph{Tries to be "as good as possible"}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Differences from 2D to 3D?}
+	\input{tikz/difference\_2D\_3D\_timed}
+	\centering
+	\onslide<3>{\Large{Only ??}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Not really...}
+	\framesubtitle{... it gets harder}
+	\begin{itemize}
+		\item<2-> Slivers appear
+		      \onslide<2->{\input{tikz/example\_sliver}}
+		\item<3-> Constrained Delaunay tetrahedrisation are not always possible
+	\end{itemize}
+\end{frame}
+
+\subsection{State of the art}
+\begin{frame}
+	\frametitle{TetGen \cite{Si2015}}
+	Already exisiting software
+
+	\begin{figure}
+		\centering
+		\includegraphics[width=0.4\textwidth]{tetgen}
+		\caption{A model tetrahedrized by TetGen}\label{fig:tetgen}
+	\end{figure}
+
+	\begin{itemize}
+		\item Not so robust, crashs on some models
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Tetrahedral meshing in the wild (Tetwild)\cite{Hu2018}}
+
+	\begin{figure}
+		\centering
+		\includegraphics[width=0.5\textwidth]{tetwild}
+		\caption{A model tetrahedrized by Tetwild}\label{fig:tetwild}
+	\end{figure}
+
+	\begin{itemize}
+		\item Not strict on boundary
+	\end{itemize}
+\end{frame}
+\appendix
+
+\begin{frame}[plain, noframenumbering]
+	\frametitle{References}
+	\begin{thebibliography}{Hu, 2018}
+		\bibitem[Si, 2015]{Si2015}
+		H.~Si.
+		\newblock {\em TetGen, a Delaunay-Based Quality Tetrahedral Mesh Generator}.
+		\newblock {\em ACM Trans}. on Mathematical Software, 41 (2), Article 11, 2015.
+
+		\bibitem[Hu, 2018]{Hu2018}
+		Y.~Hu, Q.~Zhou, X.~Gao, A.~Jacobson, D.~Zorin, D.~Panozzo.
+		\newblock {\em Tetrahedral Meshing in the Wild}.
+		\newblock {\em ACM Trans}. Graph. 37, 4, Article 60, 2018.
+	\end{thebibliography}
+\end{frame}
+
 
 \end{document}
 
