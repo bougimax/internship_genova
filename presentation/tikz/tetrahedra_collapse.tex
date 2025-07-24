@@ -1,0 +1,185 @@
+\begin{figure}[!htb]
+	\centering
+
+	\begin{tikzpicture}
+
+		\node (Init) at (0,0) {
+			\tdplotsetmaincoords{45}{30} % view angle
+			\begin{tikzpicture}[tdplot_main_coords, scale=2]
+
+				% Vertices
+				\coordinate (A) at (0,0,0);
+				\coordinate (B) at (1,0,0);
+				\coordinate (C) at (0.5,0.1,0.5);
+				\coordinate (D) at (0.5,0.1,-0.5);
+
+				% Bounding box corners
+				\coordinate (BB000) at (0, 0, -0.5);
+				\coordinate (BB100) at (1, 0, -0.5);
+				\coordinate (BB110) at (1, 0.1, -0.5);
+				\coordinate (BB010) at (0, 0.1, -0.5);
+				\coordinate (BB001) at (0, 0, 0.5);
+				\coordinate (BB101) at (1, 0, 0.5);
+				\coordinate (BB111) at (1, 0.1, 0.5);
+				\coordinate (BB011) at (0, 0.1, 0.5);
+
+				% Bounding box 
+				\draw[black!35!white, dashed] (BB000) -- (BB100) -- (BB110) -- (BB010) -- cycle;
+				\draw[black!35!white, dashed] (BB000) -- (BB001);
+				\draw[black!35!white, dashed] (BB100) -- (BB101);
+				\draw[black!35!white, dashed] (BB110) -- (BB111);
+				\draw[black!35!white, dashed] (BB010) -- (BB011);
+
+				% Edges
+				\filldraw[black!7] (A) -- (D) -- (C);
+				\filldraw[black!2] (B) -- (D) -- (C);
+				\draw[thick, line cap=round] (A) -- (B);
+				\draw[thick, line cap=round] (A) -- (C);
+				\draw[thick, line cap=round] (A) -- (D);
+				\draw[thick, line cap=round] (B) -- (C);
+				\draw[thick, line cap=round] (B) -- (D);
+				\draw[dashed, line cap=round] (C) -- (D);
+
+				\draw[black!35!white, dashed] (BB001) -- (BB101) -- (BB111) -- (BB011) -- cycle;
+			\end{tikzpicture}
+		};
+
+		\node (AfterFirstSplit) at (6,0) {
+			\tdplotsetmaincoords{45}{30} % view angle
+			\begin{tikzpicture}[tdplot_main_coords, scale=2]
+
+				% Vertices
+				\coordinate (A) at (0,0,0);
+				\coordinate (B) at (1,0,0);
+				\coordinate (C) at (0.5,0.1,0.5);
+				\coordinate (D) at (0.5,0.1,-0.5);
+				\coordinate (E) at (0.5,0,0);
+
+				% Bounding box corners
+				\coordinate (BB000) at (0, 0, -0.5);
+				\coordinate (BB100) at (1, 0, -0.5);
+				\coordinate (BB110) at (1, 0.1, -0.5);
+				\coordinate (BB010) at (0, 0.1, -0.5);
+				\coordinate (BB001) at (0, 0, 0.5);
+				\coordinate (BB101) at (1, 0, 0.5);
+				\coordinate (BB111) at (1, 0.1, 0.5);
+				\coordinate (BB011) at (0, 0.1, 0.5);
+
+				% Bounding box 
+				\draw[black!35!white, dashed] (BB000) -- (BB100) -- (BB110) -- (BB010) -- cycle;
+				\draw[black!35!white, dashed] (BB000) -- (BB001);
+				\draw[black!35!white, dashed] (BB100) -- (BB101);
+				\draw[black!35!white, dashed] (BB110) -- (BB111);
+				\draw[black!35!white, dashed] (BB010) -- (BB011);
+
+				% Edges
+				\filldraw[black!7] (A) -- (D) -- (C);
+				\filldraw[black!2] (B) -- (D) -- (C);
+				\draw[thick, line cap=round] (A) -- (B);
+				\draw[thick, line cap=round] (A) -- (C);
+				\draw[thick, line cap=round] (A) -- (D);
+				\draw[thick, line cap=round] (B) -- (C);
+				\draw[thick, line cap=round] (B) -- (D);
+				\draw[dashed, line cap=round] (C) -- (D);
+				\draw[red, thick, line cap=round] (C) -- (E) -- (D);
+
+				\draw[black!35!white, dashed] (BB001) -- (BB101) -- (BB111) -- (BB011) -- cycle;
+			\end{tikzpicture}
+		};
+
+		\node (AfterSecondSplit) at (6,-3) {
+			\tdplotsetmaincoords{45}{30} % view angle
+			\begin{tikzpicture}[tdplot_main_coords, scale=2]
+
+				% Vertices
+				\coordinate (A) at (0,0,0);
+				\coordinate (B) at (1,0,0);
+				\coordinate (C) at (0.5,0.1,0.5);
+				\coordinate (D) at (0.5,0.1,-0.5);
+				\coordinate (E) at (0.5,0,0);
+				\coordinate (F) at (0.5,0.1,0);
+
+				% Bounding box corners
+				\coordinate (BB000) at (0, 0, -0.5);
+				\coordinate (BB100) at (1, 0, -0.5);
+				\coordinate (BB110) at (1, 0.1, -0.5);
+				\coordinate (BB010) at (0, 0.1, -0.5);
+				\coordinate (BB001) at (0, 0, 0.5);
+				\coordinate (BB101) at (1, 0, 0.5);
+				\coordinate (BB111) at (1, 0.1, 0.5);
+				\coordinate (BB011) at (0, 0.1, 0.5);
+
+				% Bounding box 
+				\draw[black!35!white, dashed] (BB000) -- (BB100) -- (BB110) -- (BB010) -- cycle;
+				\draw[black!35!white, dashed] (BB000) -- (BB001);
+				\draw[black!35!white, dashed] (BB100) -- (BB101);
+				\draw[black!35!white, dashed] (BB110) -- (BB111);
+				\draw[black!35!white, dashed] (BB010) -- (BB011);
+
+				% Edges
+				\filldraw[black!7] (A) -- (D) -- (C);
+				\filldraw[black!2] (B) -- (D) -- (C);
+				\draw[thick, line cap=round] (A) -- (B);
+				\draw[thick, line cap=round] (A) -- (C);
+				\draw[thick, line cap=round] (A) -- (D);
+				\draw[thick, line cap=round] (B) -- (C);
+				\draw[thick, line cap=round] (B) -- (D);
+				\draw[dashed, line cap=round] (C) -- (D);
+				\draw[red!50, thick ,line cap=round] (C) -- (E) -- (D);
+				\draw[red, thick, dashed , line cap=round] (A) -- (F) -- (B);
+				\draw[red, thick, dashed , line cap=round] (E) -- (F);
+
+
+				\draw[black!35!white, dashed] (BB001) -- (BB101) -- (BB111) -- (BB011) -- cycle;
+			\end{tikzpicture}
+		};
+
+		\node (AfterCollapse) at (0,-3) {
+			\tdplotsetmaincoords{45}{30} % view angle
+			\begin{tikzpicture}[tdplot_main_coords, scale=2]
+
+				% Vertices
+				\coordinate (A) at (0,0,0);
+				\coordinate (B) at (1,0,0);
+				\coordinate (C) at (0.5,0.1,0.5);
+				\coordinate (D) at (0.5,0.1,-0.5);
+				\coordinate (F) at (0.5,0.1,0);
+
+				% Bounding box corners
+				\coordinate (BB000) at (0, 0, -0.5);
+				\coordinate (BB100) at (1, 0, -0.5);
+				\coordinate (BB110) at (1, 0.1, -0.5);
+				\coordinate (BB010) at (0, 0.1, -0.5);
+				\coordinate (BB001) at (0, 0, 0.5);
+				\coordinate (BB101) at (1, 0, 0.5);
+				\coordinate (BB111) at (1, 0.1, 0.5);
+				\coordinate (BB011) at (0, 0.1, 0.5);
+
+				% Bounding box 
+				\draw[black!35!white, dashed] (BB000) -- (BB100) -- (BB110) -- (BB010) -- cycle;
+				\draw[black!35!white, dashed] (BB000) -- (BB001);
+				\draw[black!35!white, dashed] (BB100) -- (BB101);
+				\draw[black!35!white, dashed] (BB110) -- (BB111);
+				\draw[black!35!white, dashed] (BB010) -- (BB011);
+
+				% Edges
+				\filldraw[black!7] (A) -- (D) -- (C);
+				\filldraw[black!2] (B) -- (D) -- (C);
+				\draw[thick, line cap=round] (A) -- (C);
+				\draw[thick, line cap=round] (A) -- (D);
+				\draw[thick, line cap=round] (B) -- (C);
+				\draw[thick, line cap=round] (B) -- (D);
+				\draw[thick, line cap=round] (C) -- (D);
+				\draw[thick, line cap=round] (A) -- (F) -- (B);
+
+				\draw[black!35!white, dashed] (BB001) -- (BB101) -- (BB111) -- (BB011) -- cycle;
+			\end{tikzpicture}
+		};
+
+		\draw[->, thick] (Init.east) -- (AfterFirstSplit.west);
+		\draw[->, thick] (AfterFirstSplit.south) -- (AfterSecondSplit.north);
+		\draw[->, thick] (AfterSecondSplit.west) -- (AfterCollapse.east);
+	\end{tikzpicture}
+
+	\caption{Tetrahedra collapsing process}\label{fig:tetrahedraCollapse}
+\end{figure}

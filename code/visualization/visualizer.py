@@ -132,19 +132,19 @@ input = ps.register_surface_mesh(
     enabled=False,
     edge_width=1,
 )
-output_vertices, output_inner_tets, output_outer_tets = parse_off_tet_file(
-    INPUT_FILEPATH + ".tet"
-)
-
-output_inner = ps.register_volume_mesh(
-    "Output inner",
-    np.array(output_vertices),
-    np.array(output_inner_tets),
-    edge_width=0,
-    transparency=0.05,
-    color=(1, 1, 1),
-    enabled=False,
-)
+# output_vertices, output_inner_tets, output_outer_tets = parse_off_tet_file(
+#     INPUT_FILEPATH + ".tet"
+# )
+#
+# output_inner = ps.register_volume_mesh(
+#     "Output inner",
+#     np.array(output_vertices),
+#     np.array(output_inner_tets),
+#     edge_width=0,
+#     transparency=0.05,
+#     color=(1, 1, 1),
+#     enabled=False,
+# )
 
 # output_edges = get_edges_from_faces(get_faces_from_tets(output_inner_tets))
 #

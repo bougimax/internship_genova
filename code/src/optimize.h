@@ -125,7 +125,7 @@ private:
   struct Split_edge_info : public Op_info {
     TetMesh::edge edge;
     size_t id;
-    pointType *split_point;
+    pointType *split_point = nullptr;
     vertex split_vertex = INFINITE_VERTEX;
 
     Split_edge_info(TetMesh::edge _e) : edge(_e) {}
@@ -223,7 +223,7 @@ private:
                                    TetMesh::edge edge_to_split,
                                    pointType *potential_split_point);
 
-  pointType *get_split_point(TetMesh::edge e);
+  pointType *get_split_point(TetMesh::edge e, double t = 0.5);
   // Returns if it's valid and worth to split the edge
   std::unique_ptr<Split_edge_info> get_split_edge_info(TetMesh::edge e);
 

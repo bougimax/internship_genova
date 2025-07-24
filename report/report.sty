@@ -1,6 +1,7 @@
-\usepackage{tikz, tikz-3dplot, amsthm, amsfonts, amssymb, hyperref, biblatex, amsmath}
+\usepackage{tikz, tikz-3dplot, amsthm, amsfonts, amssymb, hyperref, biblatex, amsmath, float}
 \usepackage[a4paper, total={6.5in, 8.5in}]{geometry}
 \usetikzlibrary{positioning}
+\graphicspath{ {./img/} }
 
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[section]
@@ -15,5 +16,7 @@
 \renewcommand{\Vert}[1]{\mathrm{Vert}(#1)}
 \newcommand{\Edges}[1]{\mathrm{Edges}(#1)}
 \newcommand{\Cl}[1]{\overline{#1}}
+\newcommand{\VT}[1]{\mathrm{VT}(#1)}
+\newcommand{\ET}[1]{\mathrm{ET}(#1)}
 
 \addbibresource{bibliography.bib}

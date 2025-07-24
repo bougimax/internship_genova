@@ -26,10 +26,10 @@
 		\column{0.4\textwidth}
 		\begin{itemize}
 
-			\item Max Royer
-			\item ENS of Lyon
-			\item End of first year of master
-			\item Internship for 3 months
+			\item<1-> Max Royer
+			\item<2-> ENS of Lyon
+			\item<3-> End of first year of master
+			\item<4-> Internship for 3 months
 
 		\end{itemize}
 
@@ -43,21 +43,21 @@
 \end{frame}
 
 \subsection{Constrained Delaunay tetrahedrisation}
-\begin{frame}
-	\frametitle{Delaunay triangulation}
-	\input{tikz/example\_delaunay\_timed}
-\end{frame}
-
-\begin{frame}
-	\frametitle{Delaunay condition}
-	\input{tikz/delaunay\_condition\_timed}
-\end{frame}
+% \begin{frame}
+% 	\frametitle{Delaunay triangulation}
+% 	\input{tikz/example\_delaunay\_timed}
+% \end{frame}
+%
+% \begin{frame}
+% 	\frametitle{Delaunay condition}
+% 	\input{tikz/delaunay\_condition\_timed}
+% \end{frame}
 
 \begin{frame}
 	\frametitle{Let's add some constraints}
 	\input{tikz/constrained\_delaunay\_timed}
 	\centering
-	\onslide<5>{\emph{Tries to be "as good as possible"}}
+	\onslide<5>{An edge is either a constraint or is locally Delaunay}
 \end{frame}
 
 \begin{frame}
@@ -94,7 +94,7 @@
 \end{frame}
 
 \begin{frame}
-	\frametitle{Tetrahedral meshing in the wild (Tetwild)\cite{Hu2018}}
+	\frametitle{Tetrahedral meshing in the wild (Tetwild) \cite{Hu2018}}
 
 	\begin{figure}
 		\centering
@@ -106,7 +106,239 @@
 		\item Not strict on boundary
 	\end{itemize}
 \end{frame}
-\appendix
+
+
+\section{The refinement algorithm}
+
+\subsection{General principle}
+
+\begin{frame}
+	\frametitle{Quality measure}
+
+	How to say if a tetrahedron is \emph{"good"}?
+
+	\medskip
+
+	\onslide<2->{
+		\begin{itemize}
+			\item \emph{Dirichlet} energy
+		\end{itemize}
+	}
+
+	\begin{columns}
+		\onslide<3->{
+			\column{0.5\textwidth}
+			\input{tikz/regular\_tetrahedra}
+			\centering Minimized on a regular tetrahedron ($=3$)
+		}
+
+		\onslide<4->{
+			\column{0.5\textwidth}
+			\input{tikz/example\_sliver\_no\_caption}
+			\centering Big value on bad tetrahedron ($\sim 10^{3} - 10^{4}$)
+		}
+	\end{columns}
+\end{frame}
+
+\begin{frame}
+	\input{tikz/optimization\_pass\_timed}
+\end{frame}
+
+\begin{frame}
+	\input{tikz/local\_operation\_pass\_timed}
+\end{frame}
+
+\subsection{Edge collapse}
+
+\begin{frame}
+	\frametitle{Overview}
+	\input{tikz/example\_collapse}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Simulation}
+	{\input{tikz/impacted\_tetrahedras\_collapse}}
+	\begin{columns}
+		\onslide<3->{
+			\column{0.5\textwidth}
+			\centering
+			\textbf{Quality before:}
+
+			\medskip
+
+			Max on \textcolor{red!80}{removed elements} $\cup$ \textcolor{blue!80}{unupdated elements}
+		}
+		\onslide<4->{
+			\column{0.5\textwidth}
+			\centering
+			\textbf{Quality after:}
+
+			\medskip
+
+			Max on \textcolor{green!80}{updated elements}
+		}
+	\end{columns}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Topological failure}
+
+	\onslide<1->{Collapsing $e:= (u,v)$ can break topology}
+
+	\onslide<2->{
+		\begin{equation}
+			\tag{Link condition}
+			\Lk{e} = \Lk{u} \cap \Lk{v}
+			\label{eqn:linkCondition}
+		\end{equation}
+	}
+
+	\begin{itemize}
+		\item<3-> $\Lk{u}$ = neighbours of $u$
+		\item<4-> $\Lk{e}$ = vertices sharing a face with $e$
+	\end{itemize}
+
+	\begin{columns}
+
+		\onslide<5->{
+			\column{0.5\textwidth}
+			\input{tikz/link\_condition\_ok\_timed}
+		}
+
+		\onslide<9->{
+			\column{0.5\textwidth}
+			\input{tikz/link\_condition\_not\_ok\_timed}
+		}
+
+	\end{columns}
+
+
+\end{frame}
+
+\subsection{A new operation}
+
+\begin{frame}
+	\frametitle{Get rid of slivers}
+
+	Some slivers resisted known operation $\Rightarrow$ Create a new operation
+
+	\input{tikz/tetrahedra\_collapse\_timed}
+\end{frame}
+
+\section{Results}
+
+\subsection{Some graphics}
+
+\begin{frame}
+	\frametitle{An example}
+
+	\begin{columns}
+		\column{0.4\textwidth}
+		\begin{figure}
+			\centering
+			\includegraphics[width=\textwidth]{model}
+			\caption{The model 112544}\label{fig:112544}
+		\end{figure}
+		\column{0.6\textwidth}
+		\onslide<2>{
+			\begin{figure}
+				\centering
+				\includegraphics[width=\textwidth]{mean\_energy\_evolution}
+			\end{figure}
+		}
+	\end{columns}
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Evolution of the distribution}
+	\begin{figure}
+		\centering
+		\includegraphics[width=0.8\textwidth]{energy\_distribution\_evolution}
+	\end{figure}
+\end{frame}
+
+
+\subsection{Comparison to TetGen}
+
+\begin{frame}
+	\frametitle{Comparison}
+	\begin{columns}
+		\column{0.4\textwidth}
+		\centering
+		\begin{itemize}
+			\item<1-> + More robust
+
+			      \medskip
+
+			\item<2-> - Slower
+			\item<3-> - Slightly less efficient
+		\end{itemize}
+
+		\medskip
+
+		\onslide<4->{
+			Can be explained by:
+			\begin{itemize}
+				\item<5-> More strict in our operations
+				\item<6-> Lack of time
+			\end{itemize}
+		}
+		\column{0.6\textwidth}
+		\centering
+		\onslide<1->{
+			\begin{table}
+				\centering
+				\begin{tabular}{c|c|c}
+					      & CDT & TetGen \\
+					\hline
+					Fails & 0\% & 25,2\% \\
+				\end{tabular}
+				\caption{Stats on the smallest 500 models of \emph{Thingi10k}}
+			\end{table}
+		}
+
+		\onslide<2->{
+			\begin{table}
+				\centering
+				\begin{tabular}{c|c|c}
+					                          & CDT     & TetGen                              \\
+					\hline
+					\onslide<2->{Best on time & 14,44\% & 85,56\%   \\}
+					\onslide<3->{Best on mean & 5,35\%  & 94,65\%                             \\
+					Best on max               & 20,59\% & 79,41\%}
+				\end{tabular}
+				\caption{Stats on the remaining models TetGen did not failed on}
+			\end{table}
+		}
+	\end{columns}
+\end{frame}
+
+
+\section{Conclusion}
+
+\begin{frame}
+	\frametitle{Future work and improvements}
+	\begin{itemize}
+		\item<1-> Optimize the speed
+		      \begin{itemize}
+			      \item<2-> Use more specific data structures
+			      \item<2-> Be less restrictive
+		      \end{itemize}
+		\item<3-> Create new operations
+		      \begin{itemize}
+			      \item<4-> To remove needles
+		      \end{itemize}
+		\item<5-> Make some operations finer
+		      \begin{itemize}
+			      \item<6-> Split vertex not always at midpoint
+		      \end{itemize}
+	\end{itemize}
+\end{frame}
+
+
+% Appendix
+
 
 \begin{frame}[plain, noframenumbering]
 	\frametitle{References}
@@ -122,6 +354,7 @@
 		\newblock {\em ACM Trans}. Graph. 37, 4, Article 60, 2018.
 	\end{thebibliography}
 \end{frame}
+
 
 
 \end{document}

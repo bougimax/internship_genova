@@ -1,4 +1,5 @@
 from pathlib import Path
+import random as rd
 import subprocess
 from datetime import datetime
 import shutil
@@ -7,6 +8,7 @@ import logging
 import os
 import numpy as np
 from math import inf
+import statistics
 
 
 def parse_node_file(path):
@@ -52,7 +54,12 @@ def compute_energys(model_name):
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename="test.log", level=logging.INFO)
+logging.basicConfig(
+    filename="test.log",
+    level=logging.INFO,
+    format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 
 EXECUTABLE_FP = Path(__file__).resolve().parents[1] / "build" / "cdt"
@@ -68,7 +75,19 @@ start_mesh = 0
 
 num_meshes = len(meshes)
 
-for num_treated_meshes, f in enumerate(meshes[start_mesh:]):
+tetgen_better_on_mean, tetgen_better_on_max, tetgen_better_on_time = 0, 0, 0
+cdt_better_on_mean, cdt_better_on_max, cdt_better_on_time = 0, 0, 0
+tetgen_fails = 0
+num_both_treated = 0
+relative_error_mean = []
+relative_error_max = []
+average_relative_error_mean = 0
+average_relative_error_max = 0
+
+# test_meshes = rd.choices(meshes[:1000], k=100)
+test_meshes = meshes[:1000]
+
+for num_treated_meshes, f in enumerate(test_meshes[start_mesh:]):
 
     # OUR PART
     model_name = f.stem
@@ -78,9 +97,10 @@ for num_treated_meshes, f in enumerate(meshes[start_mesh:]):
     print(pre_message)
     start = time.time()
     result = subprocess.run(
-        [str(EXECUTABLE_FP), "-olvc", f"{MESHES_FP / f.name}"], capture_output=True
+        [str(EXECUTABLE_FP), "-olv", f"{MESHES_FP / f.name}"], capture_output=True
     )
     end = time.time()
+    duration_cdt = end - start
     if result.stderr != b"":
         error_message = f"Failed on {model_name}"
         logger.error(error_message)
@@ -98,12 +118,15 @@ for num_treated_meshes, f in enumerate(meshes[start_mesh:]):
     start = time.time()
     try:
         result_tetgen = subprocess.run(
-            [str(TETGEN_FP), "-O2/7/3", "-pqFBQ", f"{MESHES_FP / f.name}"],
-            timeout=300,
+            [str(TETGEN_FP), "-pqFBQT0", f"{MESHES_FP / f.name}"],
+            timeout=10,
             capture_output=True,
         )
         end = time.time()
+        duration_tetgen = end - start
         if result_tetgen.returncode == 0:
+            breaking = False
+            num_both_treated += 1
             succeed_message = (
                 f"Tetgen treated {model_name}, it took {end - start:.6f} seconds"
             )
@@ -111,10 +134,25 @@ for num_treated_meshes, f in enumerate(meshes[start_mesh:]):
             print(succeed_message)
             os.remove(f"{MESHES_FP}/{model_name}.1.smesh")
             for ext in ["ele", "node"]:
+                if not Path(f"{MESHES_FP}/{model_name}.1.{ext}").exists():
+                    breaking = True
+                    break
                 shutil.move(
                     f"{MESHES_FP}/{model_name}.1.{ext}",
                     f"{MESHES_FP}/{model_name}/{model_name}.1.{ext}",
                 )
+            if breaking:
+                tetgen_fails += 1
+                error_message = f"Tetgen failed on {model_name}"
+                logger.error(error_message)
+                print(error_message)
+                with open(
+                    Path(f"{MESHES_FP}/{model_name}/result_tetgen.txt"), "w"
+                ) as f:
+                    f.write(f"max_energy : {inf}\n")
+                    f.write(f"mean_energy : {inf}\n")
+                    f.write(f"time : {inf}")
+                continue
             with open(Path(f"{MESHES_FP}/{model_name}/result_tetgen.txt"), "w") as f:
                 max_energy, mean_energy = compute_energys(model_name)
                 f.write(f"max_energy : {round(float(max_energy),5)}\n")
@@ -131,21 +169,40 @@ for num_treated_meshes, f in enumerate(meshes[start_mesh:]):
                     Path(f"{MESHES_FP}/{model_name}/max_energy.txt"), "r"
                 ) as f_cdt:
                     max_energy_cdt = float(f_cdt.readlines()[-1].strip())
+                relative_error_mean.append(
+                    (mean_energy_cdt - mean_energy) / mean_energy
+                )
+                relative_error_max.append((max_energy_cdt - max_energy) / max_energy)
+                average_relative_error_mean = (
+                    (average_relative_error_mean * (num_both_treated - 1))
+                    + ((mean_energy_cdt - mean_energy) / mean_energy)
+                ) / num_both_treated
+                average_relative_error_max = (
+                    (average_relative_error_max * (num_both_treated - 1))
+                    + ((max_energy_cdt - max_energy) / max_energy)
+                ) / num_both_treated
+                tetgen_better_on_max += max_energy < max_energy_cdt
+                cdt_better_on_max += max_energy > max_energy_cdt
+                tetgen_better_on_mean += mean_energy < mean_energy_cdt
+                cdt_better_on_mean += mean_energy > mean_energy_cdt
+                cdt_better_on_time += duration_cdt < duration_tetgen
+                tetgen_better_on_time += duration_cdt > duration_tetgen
                 print(
                     f"CDT max energy is {max_energy_cdt}, while TetGen's is {max_energy}, best is {"CDT" if max_energy_cdt < max_energy else ("TetGen" if max_energy_cdt > max_energy else "both")}"
                 )
 
         else:
+            tetgen_fails += 1
             error_message = f"Tetgen failed on {model_name}"
             logger.error(error_message)
             print(error_message)
             with open(Path(f"{MESHES_FP}/{model_name}/result_tetgen.txt"), "w") as f:
-                max_energy, mean_energy = compute_energys(model_name)
                 f.write(f"max_energy : {inf}\n")
                 f.write(f"mean_energy : {inf}\n")
                 f.write(f"time : {inf}")
 
     except subprocess.TimeoutExpired:
+        tetgen_fails += 1
         error_message = f"Tetgen failed on {model_name}"
         logger.error(error_message)
         print(error_message)
@@ -153,3 +210,14 @@ for num_treated_meshes, f in enumerate(meshes[start_mesh:]):
             f.write(f"max_energy : {inf}\n")
             f.write(f"mean_energy : {inf}\n")
             f.write(f"time : {inf}")
+
+    print(
+        f"""Cdt won {cdt_better_on_max}/{num_treated_meshes + 1 - tetgen_fails} on max energy,
+        {cdt_better_on_mean}/{num_treated_meshes + 1- tetgen_fails} on mean energy, 
+        {cdt_better_on_time}/{num_treated_meshes + 1- tetgen_fails} on time,
+        average,std relative error on max is {(average_relative_error_max, 0 if len(relative_error_max) <= 1
+        else statistics.stdev(relative_error_max))},
+        average,std relative error on mean is {(average_relative_error_mean, 0 if len(relative_error_mean) <= 1
+        else statistics.stdev(relative_error_mean))},
+        tetgen failed {tetgen_fails}/{num_treated_meshes+1}"""
+    )

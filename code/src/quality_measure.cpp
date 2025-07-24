@@ -1,4 +1,38 @@
 #include "quality_measure.h"
+#include "vector_3d.h"
+#include <cfloat>
+
+double radius_edge_ratio(const pointType *p1, const pointType *p2,
+                         const pointType *p3, const pointType *p4) {
+  const vector3d v1(p1), v2(p2), v3(p3), v4(p4);
+  const vector3d c1 = v2 - v1;
+  const vector3d c2 = v3 - v1;
+  const vector3d c3 = v4 - v1;
+  const vector3d e1 = v3 - v2;
+  const vector3d e2 = v4 - v3;
+  const vector3d e3 = v2 - v4;
+
+  const double det = c1.tripleProd(c3, c2);
+  const vector3d center =
+      v1 + (c1.cross(c2) * c3.sq_length() + c3.cross(c1) * c2.sq_length() +
+            c2.cross(c3) * c1.sq_length()) *
+               (1 / (2 * det));
+
+  const double r = std::pow(center.dist_sq(v1), 0.5);
+  const double d =
+      std::pow(std::min(c1.sq_length(),
+                        std::min(c2.sq_length(),
+                                 std::min(c3.sq_length(),
+                                          std::min(e1.sq_length(),
+                                                   std::min(e2.sq_length(),
+                                                            e3.sq_length()))))),
+               0.5);
+
+  if (d == 0)
+    return DBL_MAX;
+
+  return r / d;
+}
 
 double energy_dirichlet(const pointType *p1, const pointType *p2,
                         const pointType *p3, const pointType *p4) {

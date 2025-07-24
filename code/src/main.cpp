@@ -10,6 +10,7 @@
 #include "delaunay.h"
 #include "inputPLC.h"
 #include "optimize.h"
+#include "quality_measure.h"
 #include <fstream>
 #include <iostream>
 #include <ostream>
@@ -173,15 +174,7 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     }
     if (until_convergence) {
       int i = 0;
-      if (verbose)
-        std::cout << "Starting optimizing pass " << i << std::endl;
-      bool converged = !opt.optimize();
-      if (verbose)
-        std::cout << "Ending optimizing pass " << i << std::endl;
-      if (log) {
-        mean_energy << opt.getMeanEnergy() << std::endl;
-        max_energy << opt.getMaxEnergy() << std::endl;
-      }
+      bool converged = false;
       while (!converged) {
         i++;
         if (verbose)
@@ -196,7 +189,7 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
         }
       }
     } else {
-      for (int i = 0; i < 2; i++) {
+      for (int i = 0; i < 10; i++) {
         if (verbose)
           std::cout << "Starting optimizing pass " << i << std::endl;
         opt.optimize();

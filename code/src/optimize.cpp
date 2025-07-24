@@ -299,10 +299,9 @@ double TetMeshOptimizer::get_energy_from_splitting(tetrahedra tetrahedra,
   return std::max(energy_tet_1, energy_tet_2);
 }
 
-pointType *TetMeshOptimizer::get_split_point(edge e) {
-  return ((vector3d(mesh_->vertices[e.first]) +
-           vector3d(mesh_->vertices[e.second])) *
-          0.5)
+pointType *TetMeshOptimizer::get_split_point(edge e, double t) {
+  return (((vector3d(mesh_->vertices[e.first])) * t) +
+          ((vector3d(mesh_->vertices[e.second])) * (1 - t)))
       .toExplicitPoint();
 }
 
@@ -313,11 +312,12 @@ TetMeshOptimizer::get_split_edge_info(edge e) {
       std::make_unique<Split_edge_info>();
   split_info->edge = e;
   split_info->id = edge_to_size_t(e);
+  split_info->is_good = false;
 
   std::vector<tetrahedra> incident_tetrahedras;
   mesh_->ETfull(e.first, e.second, incident_tetrahedras);
 
-  double pre_transformation_energy = 0., post_transformation_energy = 0.,
+  double pre_transformation_energy = 0., post_transformation_energy = DBL_MAX,
          energy_of_split;
 
   // implicitPoint_LNC *potential_split_point =
@@ -325,34 +325,43 @@ TetMeshOptimizer::get_split_edge_info(edge e) {
   //                           mesh_->vertices[e.second]->toExplicit3D(), 0.5);
   //  TODO : Implicit point not working great
 
-  pointType *split_point = get_split_point(e);
+  int LOD = 2;
 
-  split_info->split_point = split_point;
+  for (int i = 1; i < LOD; i++) {
+    pointType *split_point = get_split_point(e, (double)i / LOD);
+    double current_pre_transformation_energy = 0.,
+           current_post_transformation_energy = 0.;
 
-  for (tetrahedra tet : incident_tetrahedras) {
-    if (!mesh_->has_infinite_vertex(tet) &&
-        (mesh_->mark_tetrahedra[tet] == DT_IN || !optimize_only_DT_IN)) {
-      energy_of_split = get_energy_from_splitting(tet, e, split_point);
-      if (energy_of_split == DBL_MAX) {
-        split_info->is_good = false;
-        return split_info;
+    for (tetrahedra tet : incident_tetrahedras) {
+      if (!mesh_->has_infinite_vertex(tet) &&
+          (mesh_->mark_tetrahedra[tet] == DT_IN || !optimize_only_DT_IN)) {
+        energy_of_split = get_energy_from_splitting(tet, e, split_point);
+        if (energy_of_split == DBL_MAX) {
+          split_info->is_good = false;
+          return split_info;
+        }
+        current_pre_transformation_energy = std::max(
+            current_pre_transformation_energy, tetrahedras_energy[tet]);
+        current_post_transformation_energy =
+            std::max(current_post_transformation_energy, energy_of_split);
       }
-      pre_transformation_energy =
-          std::max(pre_transformation_energy, tetrahedras_energy[tet]);
-      post_transformation_energy =
-          std::max(post_transformation_energy, energy_of_split);
+    }
+
+    if (current_pre_transformation_energy != DBL_MAX &&
+        current_post_transformation_energy <
+            current_pre_transformation_energy) {
+      split_info->is_good = true;
+      if (current_post_transformation_energy < post_transformation_energy) {
+        split_info->split_point = split_point;
+        split_info->delta = current_pre_transformation_energy -
+                            current_post_transformation_energy;
+        split_info->pre_energy = current_pre_transformation_energy;
+        if (mesh_->isOnBoundary(e.first, e.second))
+          split_info->prioritize = 1;
+      }
     }
   }
 
-  split_info->is_good = pre_transformation_energy != DBL_MAX &&
-                        pre_transformation_energy > post_transformation_energy;
-
-  if (split_info->is_good) {
-    split_info->delta = pre_transformation_energy - post_transformation_energy;
-    split_info->pre_energy = pre_transformation_energy;
-    if (mesh_->isOnBoundary(e.first, e.second))
-      split_info->prioritize = 1;
-  }
   return split_info;
 }
 
@@ -381,9 +390,14 @@ void TetMeshOptimizer::split_edge(std::unique_ptr<Split_edge_info> split_info,
 
   edge edge_to_split = split_info->edge;
   vertex split_vertex = split_info->split_vertex;
+  pointType *split_point;
 
   if (split_vertex == INFINITE_VERTEX) {
-    pointType *split_point = get_split_point(edge_to_split);
+    if (!split_info->split_point) {
+      split_point = get_split_point(edge_to_split);
+    } else {
+      split_point = split_info->split_point;
+    }
     mesh_->pushVertex(split_point);
     split_vertex = mesh_->numVertices() - 1;
   }
@@ -2032,7 +2046,7 @@ double TetMeshOptimizer::getMaxEnergy() {
   double max_energy = 0., current_tet_energy;
   for (uint32_t t = 0; t < num_tets; t++) {
     if (mesh_->mark_tetrahedra[t] == DT_IN) {
-      current_tet_energy = tetrahedras_energy[t];
+      current_tet_energy = get_quality_measure(t);
       if (current_tet_energy != DBL_MAX)
         max_energy = std::max(max_energy, current_tet_energy);
     }

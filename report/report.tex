@@ -9,6 +9,10 @@
 
 \input{title\_page}
 
+\tableofcontents
+
+\newpage
+
 \section{Introduction}
 
 This report is here to wrap up my internship at the \emph{CNR IMATI} in Genova, Italia. It was a pleasure to
@@ -28,8 +32,8 @@ robustness and accuracy of the simulations.
 
 The objective of this internship was to design and validate a greedy algorithm for refining Constrained
 Delaunay Tetrahedrizations (CDTs). We majorly gathered inspiration from the article \cite{hu:tetwild} that was
-already proposing a refinement process but in their case they were authorizing themselves to deform the input
-(\emph{i.e.} move input vertices in a small radius sphere). However in our case our constraints are strict,
+already proposing a refinement process but in their case they were authorizing themselves to slightly deform
+the input surface. However in our case the constraints are strict,
 which means that we cannot remove a input vertex or change the geometry of the faces. We are only allowed to
 add vertices, which may lay on the surface of the model only if they do not change the original surface
 geometry.
@@ -37,13 +41,34 @@ geometry.
 The plan of this report is to first present some preliminaries and the state of the art, then to present the
 refinement process and finally to compare it with other ones that already exists.
 
+\subsection*{State of the art}
+
+The state of the art is composed for us of two piece of work:
+
+\emph{TetGen}~\cite{si:tetgen} is a software which was published in 2015 by Hang Si and which is still nowadays a
+reference regarding constrained Delaunay tetrahedrisation. Similarly to our project TetGen has a refinement
+process at the end of their pipeline where they apply local operations. The thing is that TetGen is not so
+robust and often crashes or does not converge and thus never finish. One of the objective of our algorithm is
+then to be robust.
+
+\emph{Tetrahedral meshing in the wild (TetWild)}~\cite{hu:tetwild} is an article which was published in 2018 by Hu et
+al. in which they introduce the Dirichlet energy that we are using too in the project and a first set of local
+operations. For their case they were allowing themselves to slightly deform the geometry of the input, in this
+way they achieved to \emph{"correct"} some intrisic malformation of the input (\emph{e.g.} the model has a very
+sharp needle). This is something we want to avoid and thus one of our other objective is to be strict on the
+boundary and not allow any deformation. This may lead to have some elements that cannot be refined.
+
+On the other hand \emph{CDT} software published by Lorenzo Diazzi, Marco A. et al\cite{diazzi:cdt} is robust and exact
+on the boundaries but produce low quality meshes whereas \emph{TetGen} and \emph{TetWild} produce high-quality
+meshes. The goal is to offer a refinement process that is still exact and robust to produce high-quality
+meshes for \emph{CDT}.
+
+
 \section{Preliminary}
 
 \subsection{Piecewise Linear Complex}
 
-To modelize any 3D model, polyhedra are often not enough to describe well the model (for example if the model
-have holes is not connected). This is why it's important to introduce Piecewise Linear Complex which have
-been.
+In three dimensions, piecewise linear complexes are extremely flexible representations that allow to model not only 3D surfaces, but also more generic collections of 2D "constraints" that we may want to keep in the final 3D mesh.
 
 \begin{definition}[Piecewise Linear Complex]
 
@@ -80,7 +105,7 @@ Here is an example of PLC in figure \ref{fig:PLC}.
 
 \begin{remark}
 
-	In dimension 1 a simplex is an segment, in dimension 2 it's a triangle and in dimension 3 it's a tetrahedra.
+	In dimension 1 a simplex is an segment, in dimension 2 it's a triangle and in dimension 3 it's a tetrahedron.
 
 \end{remark}
 
@@ -107,92 +132,116 @@ Here is an example of PLC in figure \ref{fig:PLC}.
 		\item The \emph{closure} of $B$ is : $$\Cl{B} := \left\{\tau\in K\; |\; \exists\sigma\in B,
 			      \tau\leq\sigma\right\}$$
 
-		\item The \emph{start} of $B$ is : $$\St{B} := \left\{\sigma\in K\; |\; \exists\tau\in B,
+		\item The \emph{star} of $B$ is : $$\St{B} := \left\{\sigma\in K\; |\; \exists\tau\in B,
 			      \tau\leq\sigma\right\}$$
 
 		\item The \emph{link} of $B$ is : $$\Lk{B} := \Cl{\St{B}} \backslash \St{\Cl{B}}$$
 
-		\item The \emph{vertices} of $B$ are : $$\Vert{B} := \left\{v\in B\;|\; \dim v = 0\right\}$$ and the
-		      \emph{edges} of $B$ are : $$\Edges{B} := \left\{e\in B\;|\; \dim e = 1\right\}$$
+		\item We also define for simplicity the \emph{vertices} of $B$ that are : $$\Vert{B} := \left\{v\in B\;|\; \dim v = 0\right\}$$ and the
+		      \emph{edges} of $B$ which are : $$\Edges{B} := \left\{e\in B\;|\; \dim e = 1\right\}$$
 
 	\end{itemize}
 
 \end{definition}
 
+\begin{definition}
+	Some additional notation may be useful in the following, let $K$ be a simplicial complex:
+
+	\begin{itemize}
+		\item We define the incident \underline{V}ertex \underline{T}etrahedra's of $v\in K$ where $\dim v =
+			      1$ to be:
+		      $$\VT{v} := \left\{t\in K\;|\;\dim t = 3 \text{ and } v\in\Cl{\left\{t\right\}}\right\}$$
+		\item We define the incident \underline{E}dge \underline{T}etrahedra's of $e\in K$ where $\dim e =
+			      2$ to be:
+		      $$\ET{e} := \left\{t\in K\;|\;\dim t = 3 \text{ and } e\in\Cl{\left\{t\right\}}\right\}$$
+	\end{itemize}
+\end{definition}
+
 \begin{definition}[Delaunay triangulation]
 
-	For $P\subseteq\R^{d}$, a valid Delaunay triangulation is a set $\DT{P}$ of $d$-dimensional simplices such
-	that for all $\sigma\in\DT{P}$, there is no other points than the vertices that span $\sigma$ that are in
-	the \emph{circum-hypersphere} of $\sigma$. The later condition is often denoted as the Delaunay condition.
+	For $P\subseteq\R^{d}$, a valid Delaunay triangulation is a  simplicial complex $\DT{P}$ such
+	that for any $\sigma\in\DT{P}$, the interior of the \emph{circum-hypersphere} of $\sigma$ is empty. The later condition is often denoted as the Delaunay condition.
 
 \end{definition}
 
 \begin{remark}
 
 	In our case we'll only focus on dimension 3, in this case a Delaunay tetrahedrisation exists and is
-	guaranteed to be unique if and only if the points are non coplanar and if there doesn't exist 5 points
-	that are cospherical.
+	guaranteed to be unique if and only if the points are non coplanar and if no 5 points are cospherical.
 
 \end{remark}
 
 \subsection{Constrained Delaunay tetrahedrisation}
 
-\begin{definition}[Visible vertex]
-
-	Let $t$ be a tetrahedra, a vertex $v$ is said to be visible from $t$ if for any vertices of $t$ one can
-	draw a segment between it and $v$ without intersecting $t$.
-
-\end{definition}
-
-In the figure \ref{fig:visibleVertex} $v$ is visible whereas $w$ is not because one the segment connecting to
-a vertex is intersecting the tetrahedra on the thick dotted part.
-
-\input{tikz/example\_visible\_vertex}
-
-In our specific case we are more interested by the Constrained Delaunay Triangulation (CDT) \cite{chew:cdt}.
-Indeed for example a polygon it's often that the Delaunay tetrahedrisation of his vertices does not includes
-all the sides of the polygon. This is why the constrained Delaunay Triangulation exists, it's to force the so
-called constrained Delaunay tetrahedrisations to contain some prescribed edges while maintaining \emph{as much
-	as possible} the Delaunay condition.
+While a Delaunay triangulation provides a structure over a set of points, a "constrained" Delaunay triangulation provides a structure over a set of points and a set of "constraints". In 2D, constraints are segments connecting pairs of the input points. In 3D, conjstraints can be either segments and/or polygons that, together with the vertices, form a PLC.
 
 \begin{definition}[Constrained Delaunay tetrahedrisation]
-
-	Given a graph $G := (V, E)$ composed of vertices $V\subseteq\R^3$ and edges $E$, a valid constrained
-	Delaunay tetrahedrisation $\DT{G}$ is a set of tetrahedras such that:
-
+	Let $X = (V, E, F)$ be a PLC where $V$ is the set of vertices, $E$ is the set of segments, and $F$ is the
+	set of polygonal facets. A constrained Delaunay tetrahedrization $C$ of $X$ is a 3D simplicial complex
+	subdividing the convex hull of $X$ such that:
 	\begin{itemize}
-
-		\item All vertices connected by an edge in $G$ are also connected in at least one of the tetrahedras
-		      of $\DT{G}$
-
-		\item For all tetrahedras $t$ of $\DT{G}$ there is not another vertex $v$ that is visible from $t$ in
-		      the circum-sphere of $t$.
+		\item The vertex set $V'$ of $C$ contains $V$
+		\item Any triangular face of $C$ either is part of a facet in $F$ or is locally Delaunay
 	\end{itemize}
 
 \end{definition}
 
-\begin{remark}
-
-	The obtained constrained Delaunay tetrahedrisation is a simplicial complex.
-
-\end{remark}
+% \begin{definition}[Visible vertex]
+%
+% 	Let $t$ be a tetrahedron, a vertex $v$ is said to be visible from $t$ if for any vertices of $t$ one can
+% 	draw a segment between it and $v$ without intersecting $t$.
+%
+% \end{definition}
+%
+% In the figure \ref{fig:visibleVertex} $v$ is visible whereas $w$ is not because one the segment connecting to
+% a vertex is intersecting the tetrahedron on the thick dotted part.
+%
+% \input{tikz/example\_visible\_vertex}
+%
+% In our specific case we are more interested by the Constrained Delaunay Triangulation (CDT) \cite{chew:cdt}.
+% Indeed for example a polygon it's often that the Delaunay tetrahedrisation of his vertices does not includes
+% all the sides of the polygon. This is why the constrained Delaunay Triangulation exists, it's to force the so
+% called constrained Delaunay tetrahedrisations to contain some prescribed edges while maintaining \emph{as much
+% 	as possible} the Delaunay condition.
+%
+% \begin{definition}[Constrained Delaunay tetrahedrisation]
+%
+% 	Given a graph $G := (V, E)$ composed of vertices $V\subseteq\R^3$ and edges $E$, a valid constrained
+% 	Delaunay tetrahedrisation $\DT{G}$ is a set of tetrahedras such that:
+%
+% 	\begin{itemize}
+%
+% 		\item All vertices connected by an edge in $G$ are also connected in at least one of the tetrahedras
+% 		      of $\DT{G}$
+%
+% 		\item For all tetrahedras $t$ of $\DT{G}$ there is not another vertex $v$ that is visible from $t$ in
+% 		      the circum-sphere of $t$.
+% 	\end{itemize}
+%
+% \end{definition}
+%
+% \begin{remark}
+%
+% 	The obtained constrained Delaunay tetrahedrisation is a simplicial complex.
+%
+% \end{remark}
 
 \subsection{Quality Measure}
 
 To measure the quality of our refinement we need a quality measure. A good quality measure should be minimized
 on \emph{well-shaped} tetrahedras and becomes really big on \emph{bad-shaped} tetrahedras. Typically a
-\emph{well-shaped} tetrahedra would be one close to be a regular tetrahedra, whereas the \emph{bad-shaped}
+\emph{well-shaped} tetrahedron would be one close to be a regular tetrahedron, whereas the \emph{bad-shaped}
 ones are typically slivers which are very flat tetrahedras that appears in constrained and unconstrained
 Delaunay tetrahedrisation (see on figure \ref{fig:sliver}) or the ones with very acute angle.
 
 \input{tikz/example\_sliver}
 
-In our implementation we choosed to use the Dirichlet energy because it's assigning 3 to a regular tetrahedra,
+In our implementation we choosed to use the Dirichlet energy because it's assigning 3 to a regular tetrahedron,
 is not upper bounded and assigns very high value to slivers.
 
 \begin{definition}[Edge matrix]
 
-	Let $t$ be a tetrahedra composed of vertices $(\mathbf{x}_i)_{0\leq i\leq 3}\in\R^{3}$, the edge matrix of
+	Let $t$ be a tetrahedron composed of vertices $(\mathbf{x}_i)_{0\leq i\leq 3}\in\R^{3}$, the edge matrix of
 	$t$ is defined to be:
 
 	$$T := \biggl( \mathbf{x}_1 - \mathbf{x}_0\quad \mathbf{x}_2 - \mathbf{x}_0\quad \mathbf{x}_3 -
@@ -206,9 +255,9 @@ is not upper bounded and assigns very high value to slivers.
 
 \end{remark}
 
-\begin{definition}[Tetrahedra deformation]
+\begin{definition}[Tetrahedron deformation]
 
-	Let $t$ be a tetrahedra and $r$ another one that you want to deform $t$ to, let $T$ and respectively $R$
+	Let $t$ be a tetrahedron and $r$ another one that you want to deform $t$ to, let $T$ and respectively $R$
 	be the associated edge matrix. We define the deformation matrix to be:
 
 	$$D := TR^{-1}$$
@@ -217,7 +266,7 @@ is not upper bounded and assigns very high value to slivers.
 
 \begin{definition}[Dirichlet energy]
 
-	Let $t$ be a tetrahedra and $J$ be the deformation matrix when we deform $t$ to the regular tetrahedra of
+	Let $t$ be a tetrahedron and $J$ be the deformation matrix when we deform $t$ to the regular tetrahedron of
 	side 1. We define the Dirichlet energy to be:
 
 	$$\mathcal{E}(t) := \frac{\Tr{JJ^{t}}}{\det(J)^{\frac{2}{3}}}$$
@@ -227,105 +276,299 @@ is not upper bounded and assigns very high value to slivers.
 \begin{remark}
 
 	The definition of this energy makes it so that it's invariant by rotation of $t$ and of the regulart
-	tetrahedra chosen, this is why we say \emph{the} regular tetrahedra of side 1.
+	tetrahedron chosen, this is why we say \emph{the} regular tetrahedron of side 1.
 
 \end{remark}
 
 \begin{remark}
 
-	One may wonder if the order of the vertices in the input tetrahedra $t$ is important, the answer is that
-	as soon as the tetrahedra is well-oriented the order does not change the result (hopefully). If the
-	tetrahedra is badly-oriented the determinant at the denominator will be negative and so we just return the
+	One may wonder if the order of the vertices in the input tetrahedron $t$ is important, the answer is that
+	as soon as the tetrahedron is well-oriented the order does not change the result. If the
+	tetrahedron is badly-oriented the determinant at the denominator will be negative and so we just return the
 	maximum value because it's out of definition for $\frac{2}{3}$ exponent.
 
 \end{remark}
 
-\section{State of the art}
-
-Right now the state of the art is mainly composed of two things. First there is TetGen who is doing a
-refinement process at the end of their tetrahedrisation. The thing is that TetGen fails on certain model of
-the Thingi10k 3D model set that we'll take as reference for the rest of the report. It's a free dataset
-composed of more than 4.000 various 3D models.
 
 \section{The algorithm}
 
+\subsection{General principle}
+
 The algorithm is composed of several local operations that I will detail in the following. The main function
-is a full pass, which means it makes all the different local operations pass in a row. Then one can choose to
-only run this optimization pass a fixed number of times or to let it run until convergence (until no
-operations can be applied on the mesh).
+is the global optimization pass, which means it makes all the different local operations pass in a row. Then one can choose to only run this optimization pass a fixed number of times or to let it run until convergence (until no operations can be applied on the mesh).
 
-The process for each individual operation pass is quite the same for all of them. First we compute the effect
-that the operation would have on each element of the mesh. This pre-computation in a sort simulate the effect
-that the local operation would have on this element and then return firstly if the operation is feasible (it
-could not be the case if the operation breaks the topology for example) and also if the operation is
-decreasing the quality measure in the local footprint of the operation.
+The process for each individual operation pass is quite the same for all of them see on figure~\ref{fig:localOperationPass}.
 
-This pre-computation yields us a queue of feasible operation, which we'll process in the following manner. Pop
-an element that is benefic to apply the operation on, apply the transformation, compute the other elements
-impacted by the operation and recompute the effect the same operation would have on them and add or remove
-those element of the queue accordingly.
+Firstly there is the simulation pass, this pass is crucial to know which element on the mesh we will apply the
+operation. Simulate the effect means to compute the maximum quality measure locally before and after the
+hypothetic operation on a specific element.There are several step to validate wether the element is good to
+operate on, here they are:
+
+\begin{itemize}
+	\item The maximum local quality measure has to decrease
+	\item The geometry should not be broken (\emph{e.g.} some tetrahedra may be inverted and then have some
+	      negative volume, not deform the boundary of the mesh)
+	\item The topology should be preserved (\emph{e.g.} the manifold structure should be preserved)
+
+\end{itemize}
+
+The simulation has to take into account all those conditions, and if an element checks every one of them, it
+is then added in a queue of element to process.
+
+\input{tikz/local\_operation\_pass}
+
+Then after computing the queue, the process is greedy. We pop an element and as it is in the queue we know
+it is a good element to operate on. So we apply the local operation and retrieve both removed and impacted
+elements by the operation. Those element are then respectively removed from the queue and resimulated to
+wether add them in the queue or remove them. We always want to maintain the invariant that if an element is in
+the queue it is good to operate on.
 
 The difficult part are often to know if the operation will break the topology, and to know which element are
 impacted by a local operation.
 
-\subsection{Edge split}
+In the following I will present every operation, detailing impacted elements, topological condition to check
+and what the operation does.
+
+\subsection{Local operations}
+
+\subsubsection{Edge split}
+
+\input{tikz/example\_split}
 
 The edge split as the name suggests is the fact to add a new vertex to an edge and then arrange the geometry
 accordingly. For this operation we do not have to worry about the fact that it could break the topology
-because it cannot. Then when splitting an edge $(u,v)$ by adding a vertex $w$ in the middle, the impacted
-edges are:
+because it cannot.
 
-$$E := \Edges{\Cl{\St{\left\{(u,w)\right\}}}}\cup\Edges{\Cl{\St{\left\{(w,v)\right\}}}}$$
+By defining $\mathcal{T} := \ET{(u,v)}$ the incident tetrahedra of the edge $(u,v)$. We have that when we
+split $(u,v)$ by adding $w$ in the middle of it, each $T\in\mathcal{T}$ will be transformed in the following manner:
 
-Which are the union of all the edges of all the tetrahedras incident to either $(u,w)$ or $(w,v)$.
+$$T := \left\{u,v,x,y\right\} \longrightarrow T' := \left\{u,w,x,y\right\} \text{ and }
+	T'' :=\left\{w,v,x,y\right\}$$
 
-% $$\left\{e\text{ an edge}\ |\ \exists t\text{ a tetrahedra},\, e<t \text{ and }
+Let's define $\mathcal{T}' := \left\{T'\; |\; T\in\mathcal{T}\right\} \cup \left\{T''\; |\; T\in\mathcal{T}\right\}$ the set of transformed tetrahedra. Therefore the operation is valid on the edge $(u,v)$ if:
+
+$$\underset{T'\in\mathcal{T}'}{\max}\;\mathcal{E}(T')\leq\underset{T\in\mathcal{T}}{\max}\;\mathcal{E}(T)$$
+
+Then after applying the operation the edges to update are:
+
+$$E := \Edges{\ET{(u,w)}\cup\ET{(w,v)}}$$
+
+Which are the edges of all the tetrahedra incident to either $(u,w)$ or $(w,v)$.
+
+% $$\left\{e\text{ an edge}\ |\ \exists t\text{ a tetrahedron},\, e<t \text{ and }
 % 	\left((u,w)<t\text{ or }(v,w)<t\right)\right\}$$
 
 Here is an example of an edge split in the figure \ref{fig:splitEdge}.
 
-\input{tikz/example\_split}
 
-\subsection{Edge collapse}
+% For the moment the position of the split vertex is at the middle of the edge. It could be interesting to try
+% to run a Newton's method to find the best position for it.
 
-The edge collapse may be one of the hardest operation to approach. The fact to collapse an edge $(u,v)$ on $u$
-for example is just take all the edges incident to $v$ and to change $v$ in $u$. In this way the vertex $v$ is
-removed along with all the tetrahedras incident to the edge $(u,v)$.
+\subsubsection{Edge collapse}
 
-The difficulty of this operation is to prevent topological break. Firstly the vertex or the edge that we are
+\input{tikz/example\_collapse}
+
+Rather the intuitive approach to the edge collapse depicted on figure \ref{fig:collapseEdge}, this is one of the hardest operation to approach. In fact the difficulty of this operation is to prevent topological break. Firstly the vertex or the edge that we are
 going to remove should not be on the boundary of the model. Then the principal condition to ensure to not
 break the topology is the link condition for collapsing $(u,v)$:
 
-$$\Lk{\left\{(u,v)\right\}} = \Lk{\left\{u\right\}} \cap \Lk{\left\{v\right\}}$$
+\begin{equation}
+	\tag{Link condition}
+	\Lk{\left\{(u,v)\right\}} = \Lk{\left\{u\right\}} \cap \Lk{\left\{v\right\}}
+	\label{eqn:linkCondition}
+\end{equation}
 
-If this condition is not respected then the collapsing can't be made. In a second time when collapsing the
-edge $(u,v)$ on $u$ the removed edges are:
+Then when collapsing the edge $(u,v)$ on $u$ the incident tetrahedra at the edge $(u,v)$ $\ET{(u,v)}$ will be
+removed whereas each $T\in\VT{v}\backslash\ET{(u,v)}$ will be transformed in the following manner:
+
+$$T:=\left\{v,a,b,c\right\}\longrightarrow T':=\left\{u,a,b,c\right\}$$
+
+Therefore the operation is valid if it respects the \ref{eqn:linkCondition} and if:
+
+$$\underset{T\in\VT{v}\backslash\ET{(u,v)}}{\max}\;\mathcal{E}(T')\leq\underset{T\in\VT{v}}{\max}\;\mathcal{E}(T)$$
+
+In a second time when collapsing the edge $(u,v)$ on $u$ the removed edges that has to be supressed from the
+queue are:
 
 $$R := \Edges{\St{\left\{v\right\}}}$$
 
 and the edges to update are:
 
-$$E := TODO$$
+$$E := \Edges{\Cl{\Vert{\Cl{\left\{v\right\}}}}} \backslash R$$
 
-Here is an example of collapse in figure \ref{fig:collapseEdge}.
 
-\input{tikz/example\_collapse}
 
-\subsection{Edge swap}
+\subsubsection{Face swap}
 
-\subsection{Face swap}
+\input{tikz/example\_swap\_face}
 
-\subsection{Vertex smoothing}
+The face swap modifies the configuration of two tetrahedra that share a common face $\sigma = (u,v,w)$.
 
-\subsection{Tetrahedra collapse}
+The face swap is defined on two tetrahedra that share a face $\sigma$. Denote those tetrahedra as:
 
-% \input{tikz/regular\_tetrahedra}
-%
-% \input{tikz/example\_swap\_face}
+$$T_1 = \left\{u, v, w, a\right\} \text{ and } T_2 = \left\{u, v, w, b\right\}$$
 
-\section{Result}
+where $a$ and $b$ are the vertices opposite to the shared face $\sigma$ in each tetrahedron.
+
+The face swap replaces $T_1$ and $T_2$ by three new tetrahedra:
+
+$$T'_1 = \left\{a, b, u, v\right\}, \quad T'_2 = \left\{a, b, v, w\right\}, \quad T'_3 = \left\{a, b, w,
+	u\right\}$$
+
+These tetrahedra share the edge $(a,b)$ and together fill the same volume as $T_1 \cup T_2$, ensuring the
+local topology remains consistent. The operation is then feasible if:
+
+$$\underset{T\in\left\{T'_1,T'_2,T'_3\right\}}{\max}\;\mathcal{E}(T)\leq\underset{T\in\left\{T_1,T_2\right\}}{\max}\;\mathcal{E}(T)$$
+
+An example of such a face swap operation is illustrated in figure \ref{fig:swapFace}.
+
+The faces to update are those of the three new tetrahedras added, which is:
+
+$$F := \left\{\sigma\in\Cl{\left\{T'_1,T'_2,T'_3\right\}}\;|\; \dim \sigma = 2\right\}$$
+
+
+\subsubsection{Edge swap}
+
+\input{tikz/example\_swap\_edge}
+
+The edge swap changes the connectivity around an edge $(u,v)$ shared by multiple tetrahedra. It consists of two steps:
+
+\begin{enumerate}
+	\item Split the edge $(u,v)$ by inserting a new vertex $m$ at its midpoint
+	\item Collapse $m$ onto a neighbor vertex $w$ distinct from $u$ and $v$
+\end{enumerate}
+
+Let $\mathcal{T} := \ET{(u,v)}$, when collapsing on vertex $w$, each tetrahedron $T := \left\{u,v,a,b\right\}$ that does not contain $w$ is subdivided into two tetrahedra:
+
+$$T \rightarrow T' := \{u, w ,a,b\} \quad \text{and} \quad T'' :=\{v, w ,a,b\}$$
+
+Whereas the tetrahedron that contains the vertex $w$ is removed. Let's define the updated tetrahedra when
+collapsing $m$ on $w$:
+
+$$\mathcal{T}_{w} :=
+	\left\{T'\;|\;T\in\mathcal{T},\; w\notin T\right\} \cup\left\{T''\;|\;T\in\mathcal{T},\; w\notin
+	T\right\}$$
+
+Then concerning the topological point of view we still have to check the link condition when collapsing on $m$
+on $w$, we can then define the collapsible vertices to be:
+
+$$\mathcal{C} := \left\{w\in\Vert{\Lk{(u,v)}}\;|\; \Lk{\left\{(m,w)\right\}} = \Lk{\left\{m\right\}} \cap
+	\Lk{\left\{w\right\}}\right\}$$
+
+
+The operation is then valid if:
+
+$$\underset{w\in\mathcal{C}}{\min}\underset{T\in\mathcal{T}_{w}}{\max}\;\mathcal{E}(T)\leq\underset{T\in\ET{(u,v)}}{\max}\;\mathcal{E}(T)$$
+
+Finally there is no edge that is removed except the one we operated on and the edges to update are:
+
+$$E:= \underset{x\in\Vert{\mathcal{T}}}{\bigcup}\left\{(x,y)\;|\; y\text{ is a neighbour of }x\right\}$$
+
+There is an example in figure~\ref{fig:swapEdge}.
+
+\subsubsection{Vertex smoothing}
+
+\input{tikz/example\_smooth\_vertex}
+
+Vertex smoothing is an operation that does not change the connectivity of the mesh. Instead it changes the
+geometry, by moving vertices to the barycenter of their neighbour. Let $v$ be a vertex and
+$V:=\Vert{\Cl{v}}\backslash\left\{v\right\}$ the neighbour of $v$. Then $v$ is moved to:
+
+$$v' := \frac{1}{n}\sum_{u\in V} u$$
+
+And so each $T := \left\{v,x,y,z\right\}\in\VT{v}$ is transformed to $T' := \left\{v',x,y,z\right\}$ and the
+operation is valid if it does not invert any tetrahedron and if:
+
+$$\underset{T\in\VT{v}}{\max}\;\mathcal{E}(T')\leq\underset{T\in\VT{v}}{\max}\;\mathcal{E}(T)$$
+
+No vertices have been removed and thus the vertices to update are the ones in $V$.
+
+Here is an example of smoothing a vertex in figure~\ref{fig:smoothVertex} (it is 2D here for simplicity).
+
+
+
+
+\subsubsection{Tetrahedron collapse}
+
+\input{tikz/tetrahedra\_collapse}
+
+Slivers as depicted in figure \ref{fig:sliver} can be hard to get rid of. In fact in certain cases, due to the
+fact that we are only doing operations if they decrease the maximum quality measures locally, it is hard to
+remove slivers in one single operation. This is why creating a new combination of already existing operations
+can help to prevent slivers to appear in the final mesh.
+
+A typical example of slivers that were hard to remove were the one near the boundary. Every single operation
+would cause to degrade the mesh locally. But seeing further than one operation is possible, and this is what
+the tetrahedron collapse does.
+
+The tetrahedron collapse on $T := \left\{u,v,w,x\right\}$ is a series of three operation, which are:
+
+\begin{enumerate}
+	\item An edge split on $(u,v)$ by adding $m$
+	\item An edge split on $(w,x)$ by adding $m'$
+	\item An edge collapse of $m'$ on $m$
+\end{enumerate}
+
+By defining $\mathcal{R} := \ET{(u,v)} \backslash \left\{T\right\}$ and $\mathcal{S} := \ET{(w,x)}\backslash
+	\left\{T\right\}$ and then define the updated tetrahedra by splitting and collapsing we can define
+$\mathcal{R}'$ and $\mathcal{S}'$:
+
+$$\text{For }R := \left\{u,v,a,b\right\}\in\mathcal{R}, R\longrightarrow R':=\left\{u,m,a,b\right\}\in\mathcal{R}'\text{
+		and }R'':=\left\{v,m,a,b\right\}\in\mathcal{R}' $$
+
+$$\text{For }S := \left\{w,x,a,b\right\}\in\mathcal{S}, S\longrightarrow
+	S':=\left\{w,m,a,b\right\}\in\mathcal{S}'\text{
+		and }S'':=\left\{x,m,a,b\right\}\in\mathcal{S}' $$
+
+Then the operation is valid if:
+
+$$\underset{T\in\mathcal{R}'\cup\mathcal{S}'}{\max}\;\mathcal{E}(T)\leq\underset{T\in\mathcal{R}\cup\mathcal{S}\cup\left\{T\right\}}{\max}\;\mathcal{E}(T)$$
+
+The link condition also needs to be checked when collapsing the edge $(m,m')$.
+
+Finally the set of tetrahedron to update is $\mathcal{R}'\cup\mathcal{S}'$.
+
+
+
+\section{Experiments}
+
+All the experiments I have done were on my machine, a M1 mac with 8 Gb of ram. Here is a
+\href{https://github.com/bougimax/internship_genova}{link} to the github
+repository where you will be able to reproduce the experiments and run the code.
+
+\subsection{Source code}
+
+TODO : Maybe briefly present data structures used and organization of the code.
+
+\subsection{One example}
+
+I will first show some result on one example which is plotted on figure \ref{fig:112544}. This is quite a
+complex model with 4557 vertices and 9110 triangles. The CDT process has added 36722 Steiner points and we are
+starting from a point where the maximum quality measure is $3.81836e+06$ and the average quality measure is
+$1599,68$. After 49 minutes and 43 seconds our algorithm has converged to a maximum quality measure of
+$4814,68$ and an average of $10,6005$. It is respectively a decrease of $79300\%$ and $15000\%$
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.4\textwidth]{model}
+	\caption{The model 112544}\label{fig:112544}
+\end{figure}
+
+Here is in figure~\ref{fig:meanEnergyEvolution} the average energy evolution:
+
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=0.7\textwidth]{mean_energy_evolution}
+	\caption{Average energy evolution on model 112544}\label{fig:meanEnergyEvolution}
+\end{figure}
+
+\subsection{Comparison with \emph{TetGen}}
+
+TODO
 
 \section{Conclusion}
+
+TODO
 
 \newpage
 
