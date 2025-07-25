@@ -1,7 +1,10 @@
-\usepackage{tikz, tikz-3dplot, amsthm, amsfonts, amssymb, hyperref, biblatex, amsmath, float}
+\usepackage{tikz, tikz-3dplot, amsthm, amsfonts, amssymb, hyperref, amsmath, float}
 \usepackage[a4paper, total={6.5in, 8.5in}]{geometry}
+\usepackage[backend=biber]{biblatex}
 \usetikzlibrary{positioning}
 \graphicspath{ {./img/} }
+
+\addbibresource{bibliography.bib}
 
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[section]
@@ -18,5 +21,5 @@
 \newcommand{\Cl}[1]{\overline{#1}}
 \newcommand{\VT}[1]{\mathrm{VT}(#1)}
 \newcommand{\ET}[1]{\mathrm{ET}(#1)}
+\newcommand{\Comment}[1]{\textcolor{red}{\Large{\textbf{\underline{#1}}}}}
 
-\addbibresource{bibliography.bib}

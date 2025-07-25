@@ -17,9 +17,14 @@
 
 This report summarizes my internship at the \emph{CNR IMATI} in Genova, Italy. It was a pleasure to share those three months with Marco, Marco, and the team (where there are three other Marcos)!
 
-My internship focused on computational geometry, the field in which both Marco Attene and Marco Livesu are working. Recently, Lorenzo Diazzi, Marco A., et al. published an article \cite{diazzi:cdt} discussing constrained Delaunay tetrahedralization. So far, they have developed a robust tetrahedralization pipeline using robust geometric predicates developed by Marco Attene. However, they still lacked a refinement process for the tetrahedralized output that other well-known software like TetGen \cite{si:tetgen} or CGAL \cite{cgal:eb-24b} provide.
+My internship focused on computational geometry, the field in which both Marco Attene and Marco Livesu are
+working. Recently, Lorenzo Diazzi, Marco A., et al. published an article \cite{diazzi:cdt} discussing constrained Delaunay tetrahedralization. So far, they have developed a robust tetrahedralization pipeline using robust geometric predicates developed by Marco Attene. However, they still lacked a refinement process for the tetrahedralized output that other well-known software like TetGen \cite{si:tetgen} or CGAL \cite{cgal:eb24b} provide.
 
-Constrained Delaunay tetrahedralization (CDT) has a wide range of applications. It is commonly used in physics-based simulations such as the finite element method, solutions of partial differential equations, or ray tracing. However, these simulations and applications require high-quality meshes, which raw CDTs often fail to provide. Therefore, a refinement process is essential to improve the overall mesh quality and ensure the robustness and accuracy of the simulations.
+Constrained Delaunay tetrahedralization (CDT) has a wide range of applications. It is commonly used in
+physics-based simulations such as the finite element method, solutions of partial differential equations, or
+ray tracing. However, these simulations and applications require high-quality meshes, which raw CDTs often
+fail to provide. Therefore, a refinement process is essential to improve the overall mesh quality and ensure
+the robustness and accuracy of the simulations.
 
 The objective of this internship was to design and validate a greedy algorithm for refining Constrained Delaunay Tetrahedralizations (CDTs). We drew major inspiration from the article \cite{hu:tetwild}, which already proposed a refinement process but allowed slight deformation of the input surface. In our case, the constraints are strict, meaning we cannot remove an input vertex or change the geometry of the faces. We are only allowed to add vertices, which may lie on the surface of the model only if they do not change the original surface geometry.
 
@@ -559,7 +564,14 @@ To conclude, I think that a good part of the objective is complete. We managed t
 	\item \textbf{Be less strict on the updates}: Currently, the major bottleneck concerning the speed is the
 	      number of updates we have to make. In fact, for some operations, the number of calls to the simulation
 	      function for the update after operating on one single element can reach thousands of calls. The thing
-	      is that, in general, we need to do all those updates because all elements might really be impacted. In reality, it seems that only a very few of those updates are really necessary. These are often the elements of the tetrahedra that are really impacted and not, for example, edges that are connected to one vertex of an impacted tetrahedron (which is the case for every operation using the collapse method). The idea may be to stop updating the queue and, when popping, check that the operation is still good to perform. In this way, we may have more global optimization passes, but they would be much quicker. Concerning the efficiency of this method, we do not think it would affect much because, in the end, it is still a greedy process.
+	      is that, in general, we need to do all those updates because all elements might really be impacted.
+	      In reality, it seems that only a very few of those updates are really necessary. These are often the
+	      elements of the tetrahedra that are really impacted and not, for example, edges that are connected
+	      to one vertex of an impacted tetrahedron (which is the case for every operation using the collapse
+	      method). The idea may be to stop updating the queue and, when popping, check that the operation is
+	      still good to perform. In this way, we may have more global optimization passes, but they would be
+	      much quicker. Concerning the efficiency of this method, we do not think it would affect much
+	      because, in the end, it is still a greedy process.
 
 \end{itemize}
 \newpage
