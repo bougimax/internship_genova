@@ -15,54 +15,25 @@
 
 \section{Introduction}
 
-This report is here to wrap up my internship at the \emph{CNR IMATI} in Genova, Italia. It was a pleasure to
-share those three months with Marco, Marco and the team (where there is 3 others Marco)!
+This report summarizes my internship at the \emph{CNR IMATI} in Genova, Italy. It was a pleasure to share those three months with Marco, Marco, and the team (where there are three other Marcos)!
 
-My internship domain was computational geometry, the domain both Marco Attene and Marco Livesu are working on.
-Recently Lorenzo Diazzi, Marco A. et al published an article \cite{diazzi:cdt} talking about constrained
-Delaunay tetrahedrization. So far they had produced the robust tetrahedrization pipeline, using robust
-geometric predicates developped by Marco Attene. But they still lacked of a refinement process for the
-tetrahedrized output that other known software like TetGen \cite{si:tetgen}, or CGAL \cite{cgal:eb-24b}.
+My internship focused on computational geometry, the field in which both Marco Attene and Marco Livesu are working. Recently, Lorenzo Diazzi, Marco A., et al. published an article \cite{diazzi:cdt} discussing constrained Delaunay tetrahedralization. So far, they have developed a robust tetrahedralization pipeline using robust geometric predicates developed by Marco Attene. However, they still lacked a refinement process for the tetrahedralized output that other well-known software like TetGen \cite{si:tetgen} or CGAL \cite{cgal:eb-24b} provide.
 
-Constrained Delaunay tetrahedrization (CDT) have a wide range of applications, they are commonly used in
-physics-based simulations such as the finite element method, solutions of partial differential equations or
-raytracing. However, these simulations and applications require high-quality meshes, which raw CDTs often fail
-to provide. Therefore, a refinement process is essential to improve the overall mesh quality and ensure the
-robustness and accuracy of the simulations.
+Constrained Delaunay tetrahedralization (CDT) has a wide range of applications. It is commonly used in physics-based simulations such as the finite element method, solutions of partial differential equations, or ray tracing. However, these simulations and applications require high-quality meshes, which raw CDTs often fail to provide. Therefore, a refinement process is essential to improve the overall mesh quality and ensure the robustness and accuracy of the simulations.
 
-The objective of this internship was to design and validate a greedy algorithm for refining Constrained
-Delaunay Tetrahedrizations (CDTs). We majorly gathered inspiration from the article \cite{hu:tetwild} that was
-already proposing a refinement process but in their case they were authorizing themselves to slightly deform
-the input surface. However in our case the constraints are strict,
-which means that we cannot remove a input vertex or change the geometry of the faces. We are only allowed to
-add vertices, which may lay on the surface of the model only if they do not change the original surface
-geometry.
+The objective of this internship was to design and validate a greedy algorithm for refining Constrained Delaunay Tetrahedralizations (CDTs). We drew major inspiration from the article \cite{hu:tetwild}, which already proposed a refinement process but allowed slight deformation of the input surface. In our case, the constraints are strict, meaning we cannot remove an input vertex or change the geometry of the faces. We are only allowed to add vertices, which may lie on the surface of the model only if they do not change the original surface geometry.
 
-The plan of this report is to first present some preliminaries and the state of the art, then to present the
-refinement process and finally to compare it with other ones that already exists.
+The plan of this report is to first present some preliminaries and the state of the art, then to present the refinement process, and finally to compare it with other existing processes.
 
-\subsection*{State of the art}
+\subsection*{State of the Art}
 
-The state of the art is composed for us of two piece of work:
+The state of the art, for us, is composed of two pieces of work:
 
-\emph{TetGen}~\cite{si:tetgen} is a software which was published in 2015 by Hang Si and which is still nowadays a
-reference regarding constrained Delaunay tetrahedrisation. Similarly to our project TetGen has a refinement
-process at the end of their pipeline where they apply local operations. The thing is that TetGen is not so
-robust and often crashes or does not converge and thus never finish. One of the objective of our algorithm is
-then to be robust.
+\emph{TetGen}~\cite{si:tetgen} is software published in 2015 by Hang Si, which is still a reference regarding constrained Delaunay tetrahedralization. Similar to our project, TetGen has a refinement process at the end of their pipeline where they apply local operations. The issue is that TetGen is not very robust and often crashes or does not converge, thus never finishing. One of the objectives of our algorithm is to be robust.
 
-\emph{Tetrahedral meshing in the wild (TetWild)}~\cite{hu:tetwild} is an article which was published in 2018 by Hu et
-al. in which they introduce the Dirichlet energy that we are using too in the project and a first set of local
-operations. For their case they were allowing themselves to slightly deform the geometry of the input, in this
-way they achieved to \emph{"correct"} some intrisic malformation of the input (\emph{e.g.} the model has a very
-sharp needle). This is something we want to avoid and thus one of our other objective is to be strict on the
-boundary and not allow any deformation. This may lead to have some elements that cannot be refined.
+\emph{Tetrahedral meshing in the wild (TetWild)}~\cite{hu:tetwild} is an article published in 2018 by Hu et al. in which they introduce the Dirichlet energy that we are also using in this project, along with a first set of local operations. In their case, they allowed themselves to slightly deform the geometry of the input, thereby achieving the ability to "correct" some intrinsic malformations of the input (e.g., the model has a very sharp needle). This is something we want to avoid, so one of our other objectives is to be strict on the boundary and not allow any deformation. This may lead to having some elements that cannot be refined.
 
-On the other hand \emph{CDT} software published by Lorenzo Diazzi, Marco A. et al\cite{diazzi:cdt} is robust and exact
-on the boundaries but produce low quality meshes whereas \emph{TetGen} and \emph{TetWild} produce high-quality
-meshes. The goal is to offer a refinement process that is still exact and robust to produce high-quality
-meshes for \emph{CDT}.
-
+On the other hand, the \emph{CDT} software published by Lorenzo Diazzi, Marco A., et al.~\cite{diazzi:cdt} is robust and exact on the boundaries but produces low-quality meshes, whereas \emph{TetGen} and \emph{TetWild} produce high-quality meshes. The goal is to offer a refinement process that is still exact and robust to produce high-quality meshes for \emph{CDT}.
 
 \section{Preliminary}
 
@@ -292,42 +263,29 @@ is not upper bounded and assigns very high value to slivers.
 
 \section{The algorithm}
 
-\subsection{General principle}
+\subsection{General Principle}
 
-The algorithm is composed of several local operations that I will detail in the following. The main function
-is the global optimization pass, which means it makes all the different local operations pass in a row. Then one can choose to only run this optimization pass a fixed number of times or to let it run until convergence (until no operations can be applied on the mesh).
+The algorithm consists of several local operations that I will detail in the following sections. The main function is the global optimization pass, which means it performs all the different local operations in sequence. One can choose to run this optimization pass a fixed number of times or to let it run until convergence (until no operations can be applied to the mesh).
 
-The process for each individual operation pass is quite the same for all of them see on figure~\ref{fig:localOperationPass}.
+The process for each individual operation pass is quite similar for all of them, as shown in Figure~\ref{fig:localOperationPass}.
 
-Firstly there is the simulation pass, this pass is crucial to know which element on the mesh we will apply the
-operation. Simulate the effect means to compute the maximum quality measure locally before and after the
-hypothetic operation on a specific element.There are several step to validate wether the element is good to
-operate on, here they are:
+First, there is the simulation pass, which is crucial to determine which element on the mesh we will apply the operation to. Simulating the effect means computing the maximum quality measure locally before and after the hypothetical operation on a specific element. There are several steps to validate whether the element is suitable for the operation. Here they are:
 
 \begin{itemize}
-	\item The maximum local quality measure has to decrease
-	\item The geometry should not be broken (\emph{e.g.} some tetrahedra may be inverted and then have some
-	      negative volume, not deform the boundary of the mesh)
-	\item The topology should be preserved (\emph{e.g.} the manifold structure should be preserved)
-
+	\item The maximum local quality measure must decrease.
+	\item The geometry should not be broken (e.g., some tetrahedra may be inverted and thus have negative volume, or the boundary of the mesh may be deformed).
+	\item The topology should be preserved (e.g., the manifold structure should be preserved).
 \end{itemize}
 
-The simulation has to take into account all those conditions, and if an element checks every one of them, it
-is then added in a queue of element to process.
+The simulation must take into account all these conditions, and if an element meets every one of them, it is then added to a queue of elements to process.
 
-\input{tikz/local\_operation\_pass}
+\input{tikz/local_operation_pass}
 
-Then after computing the queue, the process is greedy. We pop an element and as it is in the queue we know
-it is a good element to operate on. So we apply the local operation and retrieve both removed and impacted
-elements by the operation. Those element are then respectively removed from the queue and resimulated to
-wether add them in the queue or remove them. We always want to maintain the invariant that if an element is in
-the queue it is good to operate on.
+After computing the queue, the process is greedy. We pop an element, and since it is in the queue, we know it is a good element to operate on. We apply the local operation and retrieve both the removed and impacted elements by the operation. These elements are then respectively removed from the queue and re-simulated to determine whether to add them back into the queue or remove them. We always want to maintain the invariant that if an element is in the queue, it is good to operate on.
 
-The difficult part are often to know if the operation will break the topology, and to know which element are
-impacted by a local operation.
+The difficult parts are often knowing if the operation will break the topology and knowing which elements are impacted by a local operation.
 
-In the following I will present every operation, detailing impacted elements, topological condition to check
-and what the operation does.
+In the following sections, I will present every operation, detailing the impacted elements, topological conditions to check, and what the operation does.
 
 \subsection{Local operations}
 
@@ -532,21 +490,19 @@ Finally the set of tetrahedron to update is $\mathcal{R}'\cup\mathcal{S}'$.
 
 \section{Experiments}
 
-All the experiments I have done were on my machine, a M1 mac with 8 Gb of ram. Here is a
-\href{https://github.com/bougimax/internship_genova}{link} to the github
-repository where you will be able to reproduce the experiments and run the code.
+All the experiments I have conducted were on my machine, a M1 Mac with 8 GB of RAM. Here is a \href{https://github.com/bougimax/internship_genova}{link} to the GitHub repository where you will be able to reproduce the experiments and run the code.
 
 \subsection{Source code}
 
-TODO : Maybe briefly present data structures used and organization of the code.
+TODO?: Maybe briefly present the data structures used, the choice for the queue, and the organization of the code?
 
 \subsection{One example}
 
-I will first show some result on one example which is plotted on figure \ref{fig:112544}. This is quite a
-complex model with 4557 vertices and 9110 triangles. The CDT process has added 36722 Steiner points and we are
-starting from a point where the maximum quality measure is $3.81836e+06$ and the average quality measure is
-$1599,68$. After 49 minutes and 43 seconds our algorithm has converged to a maximum quality measure of
-$4814,68$ and an average of $10,6005$. It is respectively a decrease of $79300\%$ and $15000\%$
+I will first show some results on one example, which is plotted in Figure \ref{fig:112544}. This is quite a
+complex model with 4557 vertices and 9110 triangles. The CDT process has added 36722 Steiner points, and we
+are starting from a point where the maximum quality measure is 3.81836e+06 and the average quality measure is
+1599.68. After 49 minutes and 43 seconds, our algorithm has converged to a maximum quality measure of
+4814.68 and an average of 10.600510.6005. This is respectively a decrease of 79300\% and 15000\%.
 
 \begin{figure}[H]
 	\centering
@@ -554,7 +510,7 @@ $4814,68$ and an average of $10,6005$. It is respectively a decrease of $79300\%
 	\caption{The model 112544}\label{fig:112544}
 \end{figure}
 
-Here is in figure~\ref{fig:meanEnergyEvolution} the average energy evolution:
+Here, in Figure~\ref{fig:meanEnergyEvolution}, is the average energy evolution:
 
 \begin{figure}[!htb]
 	\centering
@@ -564,12 +520,48 @@ Here is in figure~\ref{fig:meanEnergyEvolution} the average energy evolution:
 
 \subsection{Comparison with \emph{TetGen}}
 
-TODO
+When it comes to comparing with existing software, I figured out that I would test both programs on the same models. More precisely, I decided to perform tests on the 500 smallest models of the Thingi10k dataset. Then I will measure three components: the duration of the process, the average quality measure across all the models at the end, and also the maximum. I will also take into account failures from both algorithms.
+
+\begin{table}[!htb]
+	\centering
+	\begin{tabular}{c|c|c}
+		      & CDT & TetGen \\
+		\hline
+		Fails & 0\% & 25,2\% \\
+	\end{tabular}
+	\caption{Stats on the smallest 500 models of \emph{Thingi10k}}
+\end{table}
+
+\begin{table}[!htb]
+	\centering
+	\begin{tabular}{c|c|c}
+		                & CDT     & TetGen  \\
+		\hline
+		Best on time    & 14,44\% & 85,56\% \\
+		Best on average & 5,35\%  & 94,65\% \\
+		Best on max     & 20,59\% & 79,41\%
+	\end{tabular}
+	\caption{Stats on the remaining models TetGen did not failed on}
+\end{table}
+
+Results show a clear trade-off between robustness and quality. Some explanations can be found; the first thing is that TetGen by default looks for operations 3 steps ahead, whereas our implementation only looks one step ahead for most of the operations (only the tetrahedron collapse looks 3 steps ahead). Concerning the duration, I did not have much time in 3 months to produce a robust algorithm while optimizing it. I preferred firstly to have a working version.
 
 \section{Conclusion}
 
-TODO
+To conclude, I think that a good part of the objective is complete. We managed to maintain the robustness of the process in the refinement part while improving the quality of the mesh. We also kept the boundaries of the input untouched as it was stated initially. To accomplish this, I needed to implement simulators for the operations to predict their behavior on the geometry and the topology of the mesh. After that, I needed to actually implement the local operation itself. Still, some things may have to be done, like optimizing the speed or continuing to improve the quality of the mesh. I detail in the following paragraph some ideas we did not have the time to develop that would be interesting to look at in the future.
 
+\subsection*{Possible improvements}
+
+\begin{itemize}
+
+	\item \textbf{Refining some operations}: Some operation designs have not been developed to their full potential. I particularly think of the edge split and the vertex smoothing. For the moment, the split vertex is always placed at the middle of the edge, and the vertex smoothing also always moves the vertex to the barycenter of its neighbors. Another finer option would be to run an algorithm like Newton's method to find the best position for the concerned vertex.
+
+	\item \textbf{Be less strict on the updates}: Currently, the major bottleneck concerning the speed is the
+	      number of updates we have to make. In fact, for some operations, the number of calls to the simulation
+	      function for the update after operating on one single element can reach thousands of calls. The thing
+	      is that, in general, we need to do all those updates because all elements might really be impacted. In reality, it seems that only a very few of those updates are really necessary. These are often the elements of the tetrahedra that are really impacted and not, for example, edges that are connected to one vertex of an impacted tetrahedron (which is the case for every operation using the collapse method). The idea may be to stop updating the queue and, when popping, check that the operation is still good to perform. In this way, we may have more global optimization passes, but they would be much quicker. Concerning the efficiency of this method, we do not think it would affect much because, in the end, it is still a greedy process.
+
+\end{itemize}
 \newpage
 
 \printbibliography
