@@ -38,7 +38,16 @@ The state of the art, for us, is composed of two pieces of work:
 
 \emph{Tetrahedral meshing in the wild (TetWild)}~\cite{hu:tetwild} is an article published in 2018 by Hu et al. in which they introduce the Dirichlet energy that we are also using in this project, along with a first set of local operations. In their case, they allowed themselves to slightly deform the geometry of the input, thereby achieving the ability to "correct" some intrinsic malformations of the input (e.g., the model has a very sharp needle). This is something we want to avoid, so one of our other objectives is to be strict on the boundary and not allow any deformation. This may lead to having some elements that cannot be refined.
 
+In the paper, \emph{Tetwild} implement the edge split, the edge collapse, some face swaps and the vertex
+smoothing. More precisely, the face swaps they implemented were 3-2, 4-4, 5-6 bistellar flips, which are
+particular and precise flips. In our case we will only use 2-3 bistellar flips (§\ref{sec:faceSwap}) and I
+will introduce the edge swap (§\ref{sec:edgeSwap}) later on which is a more general swap/flip method. In our
+algorithm we are also introducing tetrahedron collapse (§\ref{sec:tetrahedronCollapse}). Finally in our case
+all operations can't move any input vertices around.
+
 On the other hand, the \emph{CDT} software published by Lorenzo Diazzi, Marco A., et al.~\cite{diazzi:cdt} is robust and exact on the boundaries but produces low-quality meshes, whereas \emph{TetGen} and \emph{TetWild} produce high-quality meshes. The goal is to offer a refinement process that is still exact and robust to produce high-quality meshes for \emph{CDT}.
+
+
 
 \section{Preliminary}
 
@@ -150,6 +159,15 @@ Here is an example of PLC in figure \ref{fig:PLC}.
 \subsection{Constrained Delaunay tetrahedrisation}
 
 While a Delaunay triangulation provides a structure over a set of points, a "constrained" Delaunay triangulation provides a structure over a set of points and a set of "constraints". In 2D, constraints are segments connecting pairs of the input points. In 3D, conjstraints can be either segments and/or polygons that, together with the vertices, form a PLC.
+
+\begin{definition}[Locally Delaunay]
+	A triangle $\tau$ is said to be locally Delaunay if one of the two following conditions hold:
+	\begin{itemize}
+		\item It is on the boundary (\emph{i.e.} it is the face of only one tetrahedron)
+		\item It is internal, and the circumsphere of each of its two incident tetrahedra does not contain the
+		      opposite vertex of the other
+	\end{itemize}
+\end{definition}
 
 \begin{definition}[Constrained Delaunay tetrahedrisation]
 	Let $X = (V, E, F)$ be a PLC where $V$ is the set of vertices, $E$ is the set of segments, and $F$ is the
@@ -282,7 +300,11 @@ First, there is the simulation pass, which is crucial to determine which element
 	\item The topology should be preserved (e.g., the manifold structure should be preserved).
 \end{itemize}
 
-The simulation must take into account all these conditions, and if an element meets every one of them, it is then added to a queue of elements to process.
+\paragraph{}The simulation must take into account all these conditions, and if an element meets every one of them, it is
+then added to a queue of elements to process. The queue is either a priority queue or a random queue (insert
+and random pop), for the priority queue we tried two parameter for the priority : the maximum local quality
+measure before the operation, or the gap between the maximum local quality measure before and after the
+operation. In the we figured by experiments that the second one is better in most of the cases.\label{par:greedyParameters}
 
 \input{tikz/local_operation_pass}
 
@@ -361,7 +383,7 @@ $$E := \Edges{\Cl{\Vert{\Cl{\left\{v\right\}}}}} \backslash R$$
 
 
 
-\subsubsection{Face swap}
+\subsubsection{Face swap}\label{sec:faceSwap}
 
 \input{tikz/example\_swap\_face}
 
@@ -390,7 +412,7 @@ The faces to update are those of the three new tetrahedras added, which is:
 $$F := \left\{\sigma\in\Cl{\left\{T'_1,T'_2,T'_3\right\}}\;|\; \dim \sigma = 2\right\}$$
 
 
-\subsubsection{Edge swap}
+\subsubsection{Edge swap}\label{sec:edgeSwap}
 
 \input{tikz/example\_swap\_edge}
 
@@ -451,7 +473,7 @@ Here is an example of smoothing a vertex in figure~\ref{fig:smoothVertex} (it is
 
 
 
-\subsubsection{Tetrahedron collapse}
+\subsubsection{Tetrahedron collapse}\label{sec:tetrahedronCollapse}
 
 \input{tikz/tetrahedra\_collapse}
 
@@ -497,9 +519,29 @@ Finally the set of tetrahedron to update is $\mathcal{R}'\cup\mathcal{S}'$.
 
 All the experiments I have conducted were on my machine, a M1 Mac with 8 GB of RAM. Here is a \href{https://github.com/bougimax/internship_genova}{link} to the GitHub repository where you will be able to reproduce the experiments and run the code.
 
-\subsection{Source code}
+\subsection{Code organizations and specifications}
 
-TODO?: Maybe briefly present the data structures used, the choice for the queue, and the organization of the code?
+The GitHub is a fork of the CDT repository of Marco Attene, this way I can have access to the algorithm that
+produces constrained Delaunay tetrahedrization. The code in itself is in the \texttt{code/src} directory, the
+code that I have written are in the following files:
+\begin{itemize}
+	\item \texttt{optimize.cpp/h}
+	\item \texttt{quality\_measure.cpp/h}
+	\item \texttt{random\_map.h}
+	\item \texttt{updatable\_queue\_template.h}
+	\item \texttt{updatable\_priority\_queue.h}
+\end{itemize}
+
+Concerning the greedy method to use, we have tried several one. The first thing we tried was to use a vector
+instead of a queue, to sort it according to the priority parameter I have decribed in the end of
+§~\ref{par:greedyParameters}, and then not updated it and check when popping an element if the element is
+still worth to operate on. This method was converging very slowly, so we decided to switch to an updatable
+priority queue. The priority queue needs to have an id for each element, then it can attach some data to this
+id (e.g. position of the split vertex for an edge ...). The insertion and the removal of an element is done i
+n $\mathcal{O}(\log n)$ where $n$ is the number of element in the queue and update is done in constant time.
+The random queue is composed of a vector containing the element and of an unordered map which maps the
+position of each element in a vertex. In this way insertion, removal and update are all done in constant
+amortized time.
 
 \subsection{One example}
 
