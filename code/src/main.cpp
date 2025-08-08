@@ -160,16 +160,16 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     opt.log = log;
     opt.get_all_tets_energy();
     if (verbose) {
-      std::cout << "Before optimization mean energy is " << opt.getMeanEnergy()
-                << std::endl;
-      std::cout << "Before optimization max energy is " << opt.getMaxEnergy()
+      std::cout << "Before optimization mean energy is "
+                << opt.get_mean_energy() << std::endl;
+      std::cout << "Before optimization max energy is " << opt.get_max_energy()
                 << std::endl;
     }
     if (polyscope)
       opt.register_tetrahedrisation("Before optim");
     if (log) {
-      mean_energy << opt.getMeanEnergy() << std::endl;
-      max_energy << opt.getMaxEnergy() << std::endl;
+      mean_energy << opt.get_mean_energy() << std::endl;
+      max_energy << opt.get_max_energy() << std::endl;
       energy_distribution << opt.get_energy_distribution() << std::endl;
     }
     if (until_convergence) {
@@ -183,8 +183,8 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
         if (verbose)
           std::cout << "Ending optimizing pass " << i << std::endl;
         if (log) {
-          mean_energy << opt.getMeanEnergy() << std::endl;
-          max_energy << opt.getMaxEnergy() << std::endl;
+          mean_energy << opt.get_mean_energy() << std::endl;
+          max_energy << opt.get_max_energy() << std::endl;
           energy_distribution << opt.get_energy_distribution() << std::endl;
         }
       }
@@ -194,8 +194,8 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
           std::cout << "Starting optimizing pass " << i << std::endl;
         opt.optimize();
         if (log) {
-          mean_energy << opt.getMeanEnergy() << std::endl;
-          max_energy << opt.getMaxEnergy() << std::endl;
+          mean_energy << opt.get_mean_energy() << std::endl;
+          max_energy << opt.get_max_energy() << std::endl;
           energy_distribution << opt.get_energy_distribution() << std::endl;
         }
         if (verbose)
@@ -205,9 +205,9 @@ TetMesh *createSteinerCDT(inputPLC &plc, const char *options) {
     if (polyscope)
       opt.register_tetrahedrisation("After optim");
     if (verbose) {
-      std::cout << "After optimization max energy is " << opt.getMaxEnergy()
+      std::cout << "After optimization max energy is " << opt.get_max_energy()
                 << std::endl;
-      std::cout << "After optimization mean energy is " << opt.getMeanEnergy()
+      std::cout << "After optimization mean energy is " << opt.get_mean_energy()
                 << std::endl;
     }
     if (log) {
