@@ -74,6 +74,9 @@ public:
       string mesh_name,
       const std::vector<std::vector<tetrahedra>> &higlighted_tetrahedras = {});
 
+  // Return a string with all the quality measure separated by ' '
+  std::string get_energy_distribution();
+
   TetMeshOptimizer() {};
   TetMeshOptimizer(TetMesh &mesh) { mesh_ = &mesh; };
   ~TetMeshOptimizer() {};
@@ -82,9 +85,6 @@ private:
   // Log functions to either log a message or log the average and maximum energy
   void log_message(std::string message);
   void log_energy();
-
-  // Return a string with all the quality measure separated by ' '
-  std::string get_energy_distribution();
 
   // The mesh structure, detailed in tetmesh.h/cpp
   TetMesh *mesh_;
@@ -180,10 +180,10 @@ private:
 
   // Third pass:
   struct Swap_edge_info : public Op_info {
-    TetMesh::edge edge;                // edge to be swapped
-    size_t id;                         // same id as in split_edge_info
-    TetMesh::vertex collapvese_vertex; // the vertex on which the new vertex
-                                       // will be collapsed on
+    TetMesh::edge edge;              // edge to be swapped
+    size_t id;                       // same id as in split_edge_info
+    TetMesh::vertex collapse_vertex; // the vertex on which the new vertex
+                                     // will be collapsed on
   };
 
   struct Swap_edge_result : public Op_result {
