@@ -4,7 +4,7 @@ EXECUTABLE = ./build/cdt
 INPUT_FILE = Input_file/sphere.off
 
 BUILD_CMD = cmake --build build --config Release
-RUN_CMD = $(EXECUTABLE) -ovlpc $(INPUT_FILE)
+RUN_CMD = $(EXECUTABLE) -o $(INPUT_FILE)
 
 .PHONY: all build run
 

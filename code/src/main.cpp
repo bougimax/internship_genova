@@ -298,7 +298,7 @@ int main(int argc, char *argv[]) {
   if (argc < 2) {
     std::cout << "CDT - Create a constrained Delaunay tetrahedrization out of "
                  "a triangulated OFF file.\n";
-    std::cout << "USAGE: CDT [-lbvfqnrs] filename.off\n";
+    std::cout << "USAGE: CDT [-lbvfqnrsopcr] filename.off\n";
     std::cout << "Example 1: CDT -bv test.off\n";
     std::cout << "Example 2: CDT -b -v test.off\n";
     std::cout << "OPTIONS:\n";
@@ -306,6 +306,11 @@ int main(int argc, char *argv[]) {
     std::cout << "-b: add eight vertices to enclose everything in a box\n";
     std::cout << "-v: verbose mode\n";
     std::cout << "-w: log on screen instead of file (implies -l)\n";
+    std::cout << "-o: run optimization process at the end to refine\n";
+    std::cout << "-p: register the tetrahedrized model in polyscope\n";
+    std::cout << "-c: run the optimization until convergence (by default only "
+                 "10 passes are made)\n";
+    std::cout << "-r: run the optimization with a random queue\n";
     std::cout
         << "-f: try to make the output representable using floating point\n";
     std::cout << "-q: rational output\n";
