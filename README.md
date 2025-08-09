@@ -16,7 +16,7 @@ git clone --recurse-submodules https://github.com/bougimax/internship_genova.git
 
 ### Build
 
-Build the executable as follows:
+Go into the `code` folder and build the executable as follows:
 ```
 cmake -B build -S .
 ```
@@ -32,7 +32,7 @@ cmake --build build --config Release
 
 ### Utilisation
 
-When compiled, the code generates an executable called ``cdt``.
+When compiled, the code generates an executable called ``cdt`` in the `build` folder.
 Launch it with no command line parameters to have a list of supported options.
 
 Example:
