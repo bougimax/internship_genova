@@ -31,6 +31,7 @@ The objective of this internship was to design and validate a greedy algorithm f
 The plan of this report is to first present some preliminaries and the state of the art, then to present the refinement process, and finally to compare it with other existing processes.
 
 \subsection*{State of the Art}
+\addcontentsline{toc}{subsection}{State of the Art}
 
 The state of the art, for us, is composed of two pieces of work:
 
@@ -38,12 +39,7 @@ The state of the art, for us, is composed of two pieces of work:
 
 \emph{Tetrahedral meshing in the wild (TetWild)}~\cite{hu:tetwild} is an article published in 2018 by Hu et al. in which they introduce the Dirichlet energy that we are also using in this project, along with a first set of local operations. In their case, they allowed themselves to slightly deform the geometry of the input, thereby achieving the ability to "correct" some intrinsic malformations of the input (e.g., the model has a very sharp needle). This is something we want to avoid, so one of our other objectives is to be strict on the boundary and not allow any deformation. This may lead to having some elements that cannot be refined.
 
-In the paper, \emph{Tetwild} implement the edge split, the edge collapse, some face swaps and the vertex
-smoothing. More precisely, the face swaps they implemented were 3-2, 4-4, 5-6 bistellar flips, which are
-particular and precise flips. In our case we will only use 2-3 bistellar flips (§\ref{sec:faceSwap}) and I
-will introduce the edge swap (§\ref{sec:edgeSwap}) later on which is a more general swap/flip method. In our
-algorithm we are also introducing tetrahedron collapse (§\ref{sec:tetrahedronCollapse}). Finally in our case
-all operations can't move any input vertices around.
+In the paper, Tetwild implements the edge split, the edge collapse, some face swaps, and the vertex smoothing. More precisely, the face swaps they implemented were 3-2, 4-4, and 5-6 bistellar flips, which are particular and precise flips. In our case, we will only use 2-3 bistellar flips (§\ref{sec:faceSwap}), and I will introduce the edge swap (§\ref{sec:edgeSwap}) later on, which is a more general swap/flip method. In our algorithm, we are also introducing tetrahedron collapse (§\ref{sec:tetrahedronCollapse}). Finally, in our case, all operations can't move any input vertices around.
 
 On the other hand, the \emph{CDT} software published by Lorenzo Diazzi, Marco A., et al.~\cite{diazzi:cdt} is robust and exact on the boundaries but produces low-quality meshes, whereas \emph{TetGen} and \emph{TetWild} produce high-quality meshes. The goal is to offer a refinement process that is still exact and robust to produce high-quality meshes for \emph{CDT}.
 
@@ -300,20 +296,20 @@ First, there is the simulation pass, which is crucial to determine which element
 	\item The topology should be preserved (e.g., the manifold structure should be preserved).
 \end{itemize}
 
-\paragraph{}The simulation must take into account all these conditions, and if an element meets every one of them, it is
-then added to a queue of elements to process. The queue is either a priority queue or a random queue (insert
-and random pop), for the priority queue we tried two parameter for the priority : the maximum local quality
-measure before the operation, or the gap between the maximum local quality measure before and after the
-operation. In the we figured by experiments that the second one is better in most of the cases.\label{par:greedyParameters}
+\paragraph{}The simulation must take into account all these conditions, and if an element meets every one of
+them, it is then added to a queue of elements to process. The queue is either a priority queue or a random
+queue (insert and random pop). For the priority queue, we tried two parameters for the priority: the maximum
+local quality measure before the operation, or the gap between the maximum local quality measure before and
+after the operation. In the end, we figured out by experiments that the second one is better in most
+cases.\label{par:greedyParameters}
 
-\input{tikz/local_operation_pass}
+\input{tikz/local\_operation\_pass}
 
 After computing the queue, the process is greedy. We pop an element, and since it is in the queue, we know it is a good element to operate on. We apply the local operation and retrieve both the removed and impacted elements by the operation. These elements are then respectively removed from the queue and re-simulated to determine whether to add them back into the queue or remove them. We always want to maintain the invariant that if an element is in the queue, it is good to operate on.
 
 The difficult parts are often knowing if the operation will break the topology and knowing which elements are impacted by a local operation.
 
 In the following sections, I will present every operation, detailing the impacted elements, topological conditions to check, and what the operation does.
-
 \subsection{Local operations}
 
 \subsubsection{Edge split}
@@ -521,9 +517,7 @@ All the experiments I have conducted were on my machine, a M1 Mac with 8 GB of R
 
 \subsection{Code organizations and specifications}
 
-The GitHub is a fork of the CDT repository of Marco Attene, this way I can have access to the algorithm that
-produces constrained Delaunay tetrahedrization. The code in itself is in the \texttt{code/src} directory, the
-code that I have written are in the following files:
+The GitHub is a fork of the CDT repository of Marco Attene; this way, I can have access to the algorithm that produces constrained Delaunay tetrahedrization. The code itself is in the \texttt{code/src} directory. The code that I have written is in the following files:
 \begin{itemize}
 	\item \texttt{optimize.cpp/h}
 	\item \texttt{quality\_measure.cpp/h}
@@ -532,24 +526,20 @@ code that I have written are in the following files:
 	\item \texttt{updatable\_priority\_queue.h}
 \end{itemize}
 
-Concerning the greedy method to use, we have tried several one. The first thing we tried was to use a vector
-instead of a queue, to sort it according to the priority parameter I have decribed in the end of
-§~\ref{par:greedyParameters}, and then not updated it and check when popping an element if the element is
-still worth to operate on. This method was converging very slowly, so we decided to switch to an updatable
-priority queue. The priority queue needs to have an id for each element, then it can attach some data to this
-id (e.g. position of the split vertex for an edge ...). The insertion and the removal of an element is done i
-n $\mathcal{O}(\log n)$ where $n$ is the number of element in the queue and update is done in constant time.
-The random queue is composed of a vector containing the element and of an unordered map which maps the
-position of each element in a vertex. In this way insertion, removal and update are all done in constant
-amortized time.
+Concerning the greedy method to use, we have tried several ones. The first thing we tried was to use a vector instead of a queue, to sort it according to the priority parameter I described at the end of §~\ref{par:greedyParameters}, and then not update it and check when popping an element if the element is still worth operating on. This method was converging very slowly, so we decided to switch to an updatable priority queue.
 
+The priority queue needs to have an ID for each element; then it can attach some data to this ID (e.g., position of the split vertex for an edge...). The insertion and the removal of an element are done in $\mathcal{O}(\log n)$, where $n$ is the number of elements in the queue, and update is done in constant time. After some tests, it seems that sometimes, as the priority queue is fully deterministic, it can be trapped in a loop that updates the elements in a certain order, which prevents the execution of other operations that would have been possible previously. To solve this problem, we thought about a random map/queue that would be updatable and have random pop.
+
+We then coded a simple structure of random queue, which is composed of a vector containing the elements and an unordered map that maps the position of each element in the vector. In this way, insertion, removal, and update are all done in constant amortized time.
+
+As it is a greedy process, there is no clear winner—it depends on the model you are processing.
 \subsection{One example}
 
 I will first show some results on one example, which is plotted in Figure \ref{fig:112544}. This is quite a
 complex model with 4557 vertices and 9110 triangles. The CDT process has added 36722 Steiner points, and we
 are starting from a point where the maximum quality measure is 3.81836e+06 and the average quality measure is
 1599.68. After 49 minutes and 43 seconds, our algorithm has converged to a maximum quality measure of
-4814.68 and an average of 10.600510.6005. This is respectively a decrease of 79300\% and 15000\%.
+4814.68 and an average of 10.6005. This is respectively a decrease of 79300\% and 15000\%.
 
 \begin{figure}[H]
 	\centering
@@ -616,6 +606,10 @@ To conclude, I think that a good part of the objective is complete. We managed t
 	      because, in the end, it is still a greedy process.
 
 \end{itemize}
+
+I would also like to thank all the team, Marco and Cino for making this experience joyful and peaceful. It would be a pleasure
+to come back in Genova which is a city I really appreciated!
+
 \newpage
 
 \printbibliography
