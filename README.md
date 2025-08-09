@@ -6,6 +6,14 @@ Livesu. See the report in the `report` folder for further explanation of my inte
 
 ## Usage
 
+### Install
+
+**To clone the repository use the recursive clone to clone the dependencies**:
+
+```
+git clone --recurse-submodules https://github.com/bougimax/internship_genova.git
+```
+
 ### Build
 
 Build the executable as follows:
