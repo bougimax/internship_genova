@@ -26,7 +26,7 @@ ray tracing. However, these simulations and applications require high-quality me
 fail to provide. Therefore, a refinement process is essential to improve the overall mesh quality and ensure
 the robustness and accuracy of the simulations.
 
-The objective of this internship was to design and validate a greedy algorithm for refining Constrained Delaunay Tetrahedralizations (CDTs). We drew major inspiration from the article \cite{hu:tetwild}, which already proposed a refinement process but allowed slight deformation of the input surface. In our case, the constraints are strict, meaning we cannot remove an input vertex or change the geometry of the faces. We are only allowed to add vertices, which may lie on the surface of the model only if they do not change the original surface geometry.
+The objective of this internship was to design and validate a greedy algorithm for refining Constrained Delaunay Tetrahedralizations (CDTs). We drew inspiration from the article \cite{hu:tetwild}, which already proposed a refinement process but allowed slight deformation of the input surface. In our case, the constraints are strict, meaning we cannot remove an input vertex or change the geometry of the faces. We are only allowed to add vertices, which may lie on the surface of the model only if they do not change the original surface geometry.
 
 The plan of this report is to first present some preliminaries and the state of the art, then to present the refinement process, and finally to compare it with other existing processes.
 
@@ -35,7 +35,7 @@ The plan of this report is to first present some preliminaries and the state of 
 
 The state of the art, for us, is composed of two pieces of work:
 
-\emph{TetGen}~\cite{si:tetgen} is software published in 2015 by Hang Si, which is still a reference regarding constrained Delaunay tetrahedralization. Similar to our project, TetGen has a refinement process at the end of their pipeline where they apply local operations. The issue is that TetGen is not very robust and often crashes or does not converge, thus never finishing. One of the objectives of our algorithm is to be robust.
+\emph{TetGen}~\cite{si:tetgen} is a software published in 2015 by Hang Si, which is still a reference regarding constrained Delaunay tetrahedralization. Similar to our project, TetGen has a refinement process at the end of their pipeline where they apply local operations. The issue is that TetGen is not very robust and often crashes or does not converge, thus never finishing. One of the objectives of our algorithm is to be robust.
 
 \emph{Tetrahedral meshing in the wild (TetWild)}~\cite{hu:tetwild} is an article published in 2018 by Hu et al. in which they introduce the Dirichlet energy that we are also using in this project, along with a first set of local operations. In their case, they allowed themselves to slightly deform the geometry of the input, thereby achieving the ability to "correct" some intrinsic malformations of the input (e.g., the model has a very sharp needle). This is something we want to avoid, so one of our other objectives is to be strict on the boundary and not allow any deformation. This may lead to having some elements that cannot be refined.
 
@@ -130,10 +130,10 @@ Here is an example of PLC in figure \ref{fig:PLC}.
 
 	\begin{itemize}
 		\item We define the incident \underline{V}ertex \underline{T}etrahedra's of $v\in K$ where $\dim v =
-			      1$ to be:
+			      0$ to be:
 		      $$\VT{v} := \left\{t\in K\;|\;\dim t = 3 \text{ and } v\in\Cl{\left\{t\right\}}\right\}$$
 		\item We define the incident \underline{E}dge \underline{T}etrahedra's of $e\in K$ where $\dim e =
-			      2$ to be:
+			      1$ to be:
 		      $$\ET{e} := \left\{t\in K\;|\;\dim t = 3 \text{ and } e\in\Cl{\left\{t\right\}}\right\}$$
 	\end{itemize}
 \end{definition}
@@ -157,9 +157,9 @@ Here is an example of PLC in figure \ref{fig:PLC}.
 While a Delaunay triangulation provides a structure over a set of points, a "constrained" Delaunay triangulation provides a structure over a set of points and a set of "constraints". In 2D, constraints are segments connecting pairs of the input points. In 3D, conjstraints can be either segments and/or polygons that, together with the vertices, form a PLC.
 
 \begin{definition}[Locally Delaunay]
-	A triangle $\tau$ is said to be locally Delaunay if one of the two following conditions hold:
+	A triangle $\tau$ of a tetrahedron in a given tetrahedrisation $\mathcal{T}$ is said to be locally Delaunay if one of the two following conditions hold:
 	\begin{itemize}
-		\item It is on the boundary (\emph{i.e.} it is the face of only one tetrahedron)
+		\item It is on the boundary (\emph{i.e.} it is the face of only one tetrahedron of $\mathcal{T}$)
 		\item It is internal, and the circumsphere of each of its two incident tetrahedra does not contain the
 		      opposite vertex of the other
 	\end{itemize}
