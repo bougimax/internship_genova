@@ -1,0 +1,48 @@
+\begin{figure}
+	\centering
+	\begin{tikzpicture}
+
+		% Regular triangle
+		\node (Triangle) at (-3,0) {
+			\begin{tikzpicture}[scale = 2.5]
+
+				% Vertices
+				\coordinate (A) at (0,0);
+				\coordinate (B) at (1,0);
+				\coordinate (C) at (0.5, 0.87);
+
+				% Edges
+				\draw[thick, line cap=round] (A) -- (B) -- (C) -- cycle;
+
+			\end{tikzpicture}
+		};
+
+		\node (TriangleText) at (-3, -3) {From this ...};
+		% Regular tetrahedra
+		\node (Tetrahedra) at (3,0) {
+			\tdplotsetmaincoords{70}{45} % view angle
+			\begin{tikzpicture}[tdplot_main_coords, scale = 2.5]
+
+				% Vertices
+				\coordinate (A) at (0,0,0);
+				\coordinate (B) at (1,0,0);
+				\coordinate (C) at (0.5,0.866,0); % equilateral basis
+				\coordinate (D) at (0.5,0.2887,0.8165);
+
+				% Edges
+				\draw[thick, line cap=round] (A) -- (D);
+				\draw[thick, line cap=round] (B) -- (D);
+				\draw[thick, line cap=round] (C) -- (D);
+				\draw[thick, line cap=round] (A) -- (B);
+				\draw[thick, line cap=round] (B) -- (C);
+				\draw[dashed, line cap=round] (C) -- (A);
+
+			\end{tikzpicture}
+		};
+
+		\node (TetrahedraText) at (3, -3) {... to this};
+		\draw[->, thick] (Triangle) -- (Tetrahedra);
+	\end{tikzpicture}
+
+	\label{fig:dif2D3D}
+\end{figure}

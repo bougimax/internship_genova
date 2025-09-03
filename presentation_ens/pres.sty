@@ -1,0 +1,18 @@
+\usepackage{graphicx, tikz, tikz-3dplot}
+\usepackage[dvipsnames]{xcolor}
+\usetikzlibrary{positioning, calc}
+\graphicspath{ {./img/} }
+
+\usetheme[compress]{Dresden}
+\usecolortheme{seagull}
+
+\setbeamertemplate{footline}
+{
+	\begin{beamercolorbox}[wd=\paperwidth, center]{date in head/foot}
+		\inserttitle\hfill\textbf{\insertframenumber/\inserttotalframenumber}\hfill\insertdate, \insertinstitute\hfill\insertauthor\vskip0pt
+	\end{beamercolorbox}
+}
+
+\setbeamertemplate{navigation symbols}{}
+
+\newcommand{\Lk}[1]{\mathrm{Lk}(#1)}

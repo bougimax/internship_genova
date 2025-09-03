@@ -1,0 +1,20 @@
+\begin{figure}[!htb]
+	\centering
+
+	\begin{tikzpicture}
+
+		\node (Tetrahedrisation) at (0,1) {\emph{\underline{Constrained Delaunay tetrahedrisation}}};
+
+		\node[align=center] (Before) at (-3,-2) {
+			\includegraphics[width=0.35\textwidth]{suzanne}
+			\\
+			A 3D model \\ (not necessarly \\tetrahedrised)
+		};
+
+		\node[align=center] (After) at (3,-2) {The \textbf{Delaunay} tetrahedrised \\model (\emph{i.e.} a set of tetrahedra)};
+
+		\draw[->, thick] (Before.east) -- (After.west);
+
+	\end{tikzpicture}
+
+\end{figure}

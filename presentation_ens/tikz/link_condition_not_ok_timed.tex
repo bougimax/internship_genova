@@ -1,0 +1,39 @@
+\begin{figure}[!htb]
+	\centering
+
+	\begin{tikzpicture}[scale = 0.8]
+
+		\coordinate (A) at (0,0);
+		\coordinate (B) at (2,0);
+		\coordinate (C) at (1,1);
+		\coordinate (D) at (1,2);
+
+		\draw (A) -- (B) -- (C) -- cycle;
+		\draw (A) -- (D);
+		\draw (B) -- (D);
+
+		\draw[thick, red] (A) -- (B);
+
+		\draw (A) node[anchor=north east] {$\textcolor{blue}{u}$};
+		\draw (B) node[anchor=north west] {$\textcolor{YellowOrange}{v}$};
+		\draw (C) node[anchor=south, yshift=2pt] {$a$};
+		\draw (D) node[anchor=south, yshift=2pt] {$b$};
+
+		\onslide<10->{
+			\filldraw[red] (C) circle (4pt);
+		}
+		\onslide<11->{
+			\filldraw[blue] (D) circle (4pt);
+			\filldraw[blue] (C) circle (2.75pt);
+		}
+		\onslide<12->{
+			\filldraw[YellowOrange] (C) circle (1.5pt);
+			\filldraw[YellowOrange] (D) circle (2.75pt);
+		}
+
+	\end{tikzpicture}
+
+	\caption{Not respected link condition}
+	\label{fig:linkConditionNotOk}
+
+\end{figure}

@@ -1,0 +1,35 @@
+\begin{figure}[!htb]
+	\centering
+
+	\begin{tikzpicture}
+
+		\coordinate (A) at (0,1.5);
+		\coordinate (B) at (1,0);
+		\coordinate (C) at (2,1.5);
+		\coordinate (D) at (3,0);
+		\coordinate (E) at (4,1.5);
+
+		\draw (A) -- (B) -- (C) -- cycle;
+		\draw (D) -- (B) -- (C) -- cycle;
+		\draw (D) -- (E) -- (C) -- cycle;
+
+		\draw[thick, red] (B) -- (D);
+
+		\draw (A) node[anchor=south east] {$a$};
+		\draw (B) node[anchor=north east] {$\textcolor{blue}{u}$};
+		\draw (C) node[anchor=south, yshift=2pt] {$b$};
+		\draw (D) node[anchor=north west] {$\textcolor{YellowOrange}{v}$};
+		\draw (E) node[anchor=south west] {$c$};
+
+		\filldraw[red] (C) circle (4pt);
+		\filldraw[blue] (A) circle (3pt);
+		\filldraw[blue] (C) circle (2.75pt);
+		\filldraw[YellowOrange] (C) circle (1.5pt);
+		\filldraw[YellowOrange] (E) circle (3pt);
+
+	\end{tikzpicture}
+
+	\caption{Respected link condition}
+	\label{fig:linkConditionOk}
+
+\end{figure}
